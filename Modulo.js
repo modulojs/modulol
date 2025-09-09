@@ -1,4 +1,4 @@
-/*<script src=?></script><script File -syntax=mdocs type=md>---
+/*<script src=?></script><meta charset=utf8><script File -syntax=mdocs type=md>---
 version: v0.1.0pre
 copyright: 2025 MichaelB - LGPLv3
     Modulo LGPLv3.0 NOTICE: Any modifications to or derivatives of the
@@ -9,14 +9,13 @@ copyright: 2025 MichaelB - LGPLv3
     direct derivitives, and/or scaffolded projects or training-derived code.
 ---
 //md: v0.1.0pre */
-if (typeof window === "undefined") { // md: # `%` Modulo
-    var window = {}; // md: #### `%` **[New Markdown File »](?argv=edit&argv=new)**
-}// md:  #### `%` **[Browse Modulo's Source Code »](?argv=edit)**
-// md: ---
-window.Modulo = function Modulo () { // md: ## Help
-    //md: Read the full docs online: [**ModuloJS.org**](https://modulojs.org)
-    window.Modulo.instanceID = window.Modulo.instanceID || 0;
-    this.id = ++window.Modulo.instanceID; // Every instance's unique ID
+if (typeof window === "undefined") { // md: # ᵐ°`d`ᵘ⁄`o`
+    var window = {}; // md: #### `%` **[Create Markdown »](?argv=edit&argv=md)**
+}// md:  #### `%` **[Create Component »](?argv=edit&argv=cmp)**
+// md:  #### `%` **[Create Library »](?argv=edit&argv=lib)**
+window.Modulo = function Modulo () {
+    window.Modulo.instanceID = window.Modulo.instanceID || 0; // md: ---
+    this.id = ++window.Modulo.instanceID; // md: ## Help
     Object.assign(this, {
         _connectedQueue: [],
         _drainQueue: () => {
@@ -68,7 +67,6 @@ Modulo.CONFIG = {
         DefinedAs: 'name',
         BuildLifecycle: 'build',
         RenderObj: 'component',
-        // Children: 'cparts', // How we can implement Parentage: Object.keys((get('modulo.registry.' + value))// cparts))
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'Src', 'Content' ],
         DefBuilders: [ 'CustomElement', 'alias|AliasNamespace', 'CodeTemplate' ],
         DefFinalizers: [ 'MainRequire' ],
@@ -99,10 +97,6 @@ Modulo.CONFIG = {
         topLevelTags: [ 'modulo', 'file' ],
         genericDefTags: { def: 1, script: 1, template: 1, style: 1 },
     },
-    fetchqueue: {
-        callbackName: 'DOCTYPE_MODULO',
-        filePadding: { prefix: '!DOCTYPE_MODULO(`', suffix: '`)' },
-    },
     file:  {
         DataType: 'TXT',
         Syntax: 'markdown',
@@ -125,9 +119,9 @@ Modulo.CONFIG = {
     },
     modulo: {
         build: { mainModules: [ ], ordered: [ ], unordered: [ ] },
-        defaultContent: '<devlib-View>',
-        scriptSelector: "script[src$='mdu.js'],script[src$='/Modulo.js']," +
-                        "script[src='?'],script[src$='/Modulo.html']",
+        defaultContent: '<meta charset="utf8" /><devlib-View>',
+        scriptSelector: "script[src$='mdu.js'],script[src$='Modulo.js']," +
+                        "script[src='?'],script[src$='Modulo.html']",
         version: '0.1.0pre',
         ChildPrefix: '', // Prevents all children from getting modulo_ prefixed
         Contains: 'coreDefs',
@@ -218,8 +212,7 @@ Modulo.CONFIG = {
         TemplatePrebuild: "y", // TODO: Refactor
         DefFinalizers: [ 'FilterContent', 'TemplatePrebuild' ],
         FilterContent: 'trim|tagswap:config.component.tagAliases',
-        //unsafe: 'filters.escapehtml', // Function to check / sanitize output
-        unsafe: 'filters.escape', // TODO: Check to make sure this works
+        unsafe: 'filters.escape',
         modeTokens: [ '{% %}', '{{ }}', '{# #}' ],
         opTokens: '==,>,<,>=,<=,!=,not in,is not,is,in,not,gt,lt',
         opAliases: {
@@ -233,6 +226,20 @@ Modulo.CONFIG = {
         },
     },
     _dev: {
+        'preset_md': { 'new-page.html': '<script src=Modulo.html></' +
+            'script><script File type=md>---\na:bc\n---\n\n## New doc\n\n' },
+        preset_cmp: { 'new-component.html': '<script src=Modulo.html></' +
+            'script>\n<template Modulo>\n<Component name="Greet">\n<Template>' +
+            '\nHello\n</Template>\n</Component>\n</template>\n\n<x-Greet></x-Greet>' },
+        preset_lib: { 'new-library.html': '<script src=Modulo.html></' +
+            'script><template File -syntax=mdocs type=md>\n<!--\nm' +
+            'd:### Usage\nmd\:See:\nmd\:```html=embed\nmd\:<script ' +
+            'Modulo src=Modulo.html -src="new-library.html"></' + 'script>\nm' +
+            'd:<x-Greet>World</x-Greet>\nmd\:```\n-->\n\n<Component ' +
+            'name="Greet" -src="Greet.html"></Component>',
+            'Greet.html': '<script src=Modulo.html></' + 'script><template ' +
+                'File -syntax=mdocs type=md>\nmd\:...\n<Template>\n' + 
+                'Hello<slot></slot>\n</Template>' },
         artifact: `<Artifact name="css" -bundle="link,modstyle,style">
                 {% for id in def.ids %}{{ def.data|get:id|safe }}{% endfor %}
             </Artifact>
@@ -247,26 +254,26 @@ Modulo.CONFIG = {
                     modulo.registry.modules.{{ name }}.call(window, modulo);
                 {% endif %}{% endfor %}
             </Artifact>
-            <Artifact name="html" path-template="{{ config.path-name|default:'index.html' }}" prefix="<!DOCTYPE HTML>" -remove="modulo,[modulo]">
+            <Artifact name="html" path-template="{{ config.path-name|default:'index.html' }}"
+                                             prefix="<!DOCTYPE HTML>" -remove="modulo,[modulo]">
                 <ht><he>{{ doc.head.innerHTML|safe }}
                     <link rel="stylesheet" href="{{ definitions._artifact_css.path }}"></link>
                     <js async src="{{ definitions._artifact_js.path }}"></js>
                 </he><bo>{{ doc.body.innerHTML|safe }}</bo></ht>
             </Artifact>`,
-        component: `
-        <Component namespace="devlib" mode="shadow" name="Edit">
+        component: `<Component namespace="devlib" mode="shadow" name="Edit">
             <Props value mode demo file dash></Props>
-            <Template -name="demo_embed">{{ value|safe }}</Template><Template -name="demo_component">
-            <js Modulo src=Modulo.html><Component name=x>{{ value|safe }}</Component></js><x-x></Template>
-        <Template>
-            <article>
+            <Template -name="demo_embed">{{ value|safe }}</Template>
+            <Template -name="demo_component">
+            <js Modulo src=Modulo.html><Component name=x>{{ value|safe }}</Component></js><x-x>
+            </Template><Template><article>
             {% if props.mode %}<pre style="position:absolute;height:{{ script.lc }}px; z-index: -1">
                 {{ state.value|syntax:props.mode|safe }}</pre>{% endif %}
-            {% if script.demo %}<textarea spellcheck=false state.bind name=value
+            {% with render-obj|get:script.demo as demo %}{% if demo %}
+            <textarea spellcheck=false state.bind name=value
                  style="height:{{ script.lc }}px"></textarea><div></div>
-            <iframe style="height:{{ script.lc }}px;"
-                 srcdoc="{{ state|renderas:script.demo|add:'' }}"
-                 loading=lazy></iframe>{% endif %}</article></Template><State></State>
+            <iframe style="height:{{ script.lc }}px;" srcdoc="{{ state|renderas:demo|add:'' }}"
+                 loading=lazy></iframe>{% endif %}{% endwith %}</article></Template><State></State>
             <Style>pre,textarea,iframe{display:block;color:black;background:transparent;
             font-size:18px;white-space:pre;text-align:start;line-height:1;
             overflow-wrap:break-word;margin:0;padding:10px;box-sizing: content-box;
@@ -275,18 +282,17 @@ Modulo.CONFIG = {
             textarea{resize:none;color:#00000000;caret-color:#000;overflow:none}
             article{display:grid;grid-template-columns: 1fr 1px 1fr; width:98%;margin:0.5%}</Style>
             <def Script>function prepareCallback() {
-                if (!('value' in state)) { Object.assign(state, props); }
-                if (state.file ? state.loadedFrom !== state.file : 0) {
-                    state.value = modulo.stores.BUILD.getItem(state.file) || ''
-                    state.loadedFrom = state.file;
+                if (!('value' in state) || (state.file !== props.file)) {
+                    window._globalFS = { _cache: modulo.fetchQueue.data };
+                    Object.assign(state, props, { value: props.file ? getFile()
+                         : ('value' in state ? state.value : props.value) });
                 }
-                return { demo: cparts['demo_' + props.demo], lc: state.value.split('\\n').length * 18 };
+                return { demo: 'demo_' + props.demo, lc: state.value.split('\\n').length * 18 };
             }
-            function updateCallback() {
-                if (state.file ? state.value : 0) {
-                    modulo.stores.BUILD.setItem(state.file, state.value);
-                }
-            }</def>
+            function getFile() { return modulo.stores.BUILD.getItem(props.file) }
+            function updateCallback() { if (state.file ? state.value : 0) {
+                modulo.stores.BUILD.setItem(state.file, state.value); // save
+            } }</def>
         </Component>
         <Component namespace="devlib" name="Dashboard">
             <Props edit></Props>
@@ -295,9 +301,9 @@ Modulo.CONFIG = {
                 {% if proc.log|length %}<aside>{% for row in proc.log %}<iframe
                     src="{{ row|get:0 }}"></iframe>{% endfor %}</aside>{% endif %}
                 <pre>{% for row in proc.log %}{{ row|reversed|join:" \t" }}<br />{% endfor %}</pre>
-            {% if not global.stores._cache %}.{% endif %}
             <pre>{% for path, text in build.fdata %}
-                <a download="{{ path }}" href="data:text/plain;charset=utf-8,{{ text|urlencode:true }}">{{ path }}</a> ({{ text|length }}){% endfor %}</pre>
+                <a download="{{ path }}" href="data:text/plain;charset=utf-8,{{ text|urlencode:true }}"
+                    >{{ path }}</a> ({{ text|length }}){% endfor %}</pre>
             <select state.bind name="edit"><option value="">---</option>
             {% for p, t in build.fdata %}
                 <option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
@@ -312,8 +318,8 @@ Modulo.CONFIG = {
             <State -name="proc" -store="PROC"></State>
             <Style>aside { max-width: calc(100vw - 400px); float: right; }</Style>
         </Component><Component mode="vanish" namespace="devlib" name="View"><Template>
-            {{ global.definitions.file|get:'data.body'|safe }}
-        </Template><Style>:root{line-height:1.5;} h2 {margin:60px 0 0 0;font-family:sans-serif;}
+            {% with global.definitions|get:'file.data' as f %}{{ f.body|safe }}{% endwith %}
+        </Template><Style>:root{line-height:1.5;} h2[h]{margin:60px 0 0 0;font-family:sans-serif;font-weight:500;}
         h2[h='#']{font-size:56px} h2[h='##']{font-size:36px;}h2[h='###']{font-size:30px}</Style></Component>`,
     },
 };
@@ -322,10 +328,9 @@ Modulo.CONFIG.syntax.html.push([ new RegExp(`(\\b${ Object.keys(
     Modulo.CONFIG.syntax.jsReserved).join('\\b|\\b') }\\b)`, 'g'),
     `<strong style=color:firebrick>$1</strong>` ]);
 
-
-Modulo.prototype.register = function register (type, cls, defaults = undefined) { // TODO Mostly refactor away, along with core types, and instead be built when "load"?
+Modulo.prototype.register = function register (type, cls, defaults = undefined) {
     type = (`${type}s` in this.registry) ? `${type}s` : type; // pluralize
-    if (type in registryCallbacks) { // TODO rm
+    if (type in registryCallbacks) {
         cls = registryCallbacks[type](this,  cls) || cls;
     }
     this.assert(type in this.registry, 'Unknown registry type: ' + type);
@@ -338,16 +343,10 @@ Modulo.prototype.register = function register (type, cls, defaults = undefined) 
 }
 window.modulo = new window.Modulo(); // Create the global default Modulo instance
 
-const registryCallbacks = { // TODO: RM
+const registryCallbacks = {
     commands(modulo, cls) {
         window.m = window.m || {}; // Avoid overwriting existing truthy m
         window.m[cls.name] = () => cls(modulo); // Attach shortcut to global "m"
-    },
-    tool(modulo, cls) {
-        modulo.utils = modulo.utils || {} // new modulo.utils interface
-        if (cls.name[0].toLowerCase()  === cls.name[0]) { // lower
-            modulo.utils[cls.name] = cls.bind(modulo); // TODO: rm "bind", change to pass, collapse all into "util"
-        }
     },
     processors(modulo, cls) {
         modulo.registry.processors[cls.name.toLowerCase()] = cls; // Alias lower
@@ -360,9 +359,9 @@ const registryCallbacks = { // TODO: RM
 
 Modulo.prototype.instance = function instance(def, extra, inst = null) {
         const isLower = key => key[0].toLowerCase() === key[0];
-        const coreDefSet = { Component: 1, Artifact: 1 }; // TODO: make compatible with any registration type
+        const coreDefSet = { Component: 1, Artifact: 1 }; // TODO: Refactor
         const registry = (def.Type in coreDefSet) ? 'coreDefs' : 'cparts';
-        inst = inst || new this.registry[registry][def.Type](this, def, extra.element || null); // TODO rm the element arg
+        inst = inst || new this.registry[registry][def.Type](this, def, extra.element || null);
         const id = ++window.Modulo.instanceID; // Unique number
         //const conf = Object.assign({}, this.config[name.toLowerCase()], def);
         const conf = Object.assign({}, def); // Just shallow copy "def"
@@ -404,7 +403,7 @@ Modulo.prototype.repeatProcessors = function repeatProcessors(defs, field, cb) {
         let changed = true; // Run at least once
         const defaults = this.config.modulo['default' + field] || [];
         while (changed) {
-            changed = false; // TODO: Is values deterministic in order? (Solution, if necessary: definitions key order arr)
+            changed = false; // TODO: Make deterministic order e.g. arr
             for (const def of (defs || Object.values(this.definitions))) {
                 const processors = def[field] || defaults;
                 //changed = changed || this.applyProcessors(def, processors);
@@ -417,8 +416,8 @@ Modulo.prototype.repeatProcessors = function repeatProcessors(defs, field, cb) {
             }
         }
         const repeat = () => this.repeatProcessors(defs, field, cb);
-        if (changed !== null && Object.keys(this.fetchQueue ? this.fetchQueue.queue : {}).length === 0) { // TODO: Remove ?: after core object refactor
-            if (cb) {
+        if (changed !== null && Object.keys(this.fetchQueue ? this.fetchQueue.queue : {}).length === 0) {
+            if (cb) { // TODO: Refactor this area, most is not needed
                 cb(); // Synchronous path
             }
         } else {
@@ -427,7 +426,7 @@ Modulo.prototype.repeatProcessors = function repeatProcessors(defs, field, cb) {
     }
 
 Modulo.prototype.applyNextProcessor = function applyNextProcessor(def, processorNameArray) {
-        const cls = this.registry.cparts[def.Type] || this.registry.coreDefs[def.Type] || {}; // TODO: Fix this
+        const cls = this.registry.cparts[def.Type] || this.registry.coreDefs[def.Type] || {};
         const { processors } = this.registry;
         for (const name of processorNameArray) {
             const [ attrName, aliasedName ] = name.split('|');
@@ -550,7 +549,6 @@ modulo.register('core', class ValueResolver {
 modulo.register('core', class FetchQueue {
     constructor(modulo, queue = {}, data = {}) {
         Object.assign(this, { modulo, queue, data });
-        this.wait = callback => this.enqueue(callback, true); // TODO: RM this alias
     }
 
     fetch(src) {  // Returns "thennable" that somewhat resembles window.fetch
@@ -558,44 +556,37 @@ modulo.register('core', class FetchQueue {
     }
 
     request(src, resolve, reject) { // Do fetch & do enqueue
-        if (src in this.data) { // Cached data found
+        src = src === '?' ? this.modulo.config.pathName : src;
+        if (window.parent && parent._globalFS && src in parent._globalFS._cache) {
+            resolve(window.parent._globalFS._cache[src], src); // iframe route
+        } else if (src in this.data) { // Cached data found
             resolve(this.data[src], src); // (sync route)
         } else if (!(src in this.queue)) { // No cache, no queue
             this.queue[src] = [ resolve ]; // First time, create the queue Array
-            const { force, callbackName } = this.modulo.config.fetchqueue;
-            if (force === 'frame') {
-                const iframe = window.document.createElement('IFRAME');
-                window.addEventListener('message', (ev) => {
-                    const def = JSON.parse(ev.data);
-                    iframe.remove();
-                    modulo.fetchQueue.receiveData(def.Content, src);
-                }, false);
-                window.document.body.append(Object.assign(iframe, {
-                     src: value + '?argv=_load', style: 'display:none'
-                }));
-            } else if ((!force && src.startsWith('file:/')) || force === 'file') {
-                window[callbackName] = str => { this.__data = str };
-                const elem = window.document.createElement('SCRIPT');
-                elem.onload = () => this.receiveData(this.__data, src);
-                elem.src = src + (src.endsWith('/') ? 'index.html' : '');
-                window.document.head.append(elem); // Actually execute request
-                elem.remove(); // Clean up SCRIPT tag when we are done
-            } else { // Otherwise, use normal fetch transport method
+            if (location.protocol !== 'file:' ||
+                    (src.includes('//') && !src.startsWith('file:/'))) {
                 window.fetch(src, { cache: 'no-store' })
                     .then(response => response.text())
                     .then(text => this.receiveData(text, src))
                     .catch(reject);
+            } else {
+                if (!this._inFlight) {
+                    window.addEventListener('message', (ev) => {
+                        iframe.remove();
+                        modulo.fetchQueue.receiveData(ev.data, this._inFlight);
+                    }, false);
+                }
+                const iframe = window.document.createElement('IFRAME');
+                this._inFlight = src;
+                window.document.body.append(Object.assign(iframe, {
+                     src: src + '?argv=_load', style: 'display:none' }));
             }
         } else { // Otherwise: Already requested, only enqueue function
             this.queue[src].push(resolve);
         }
     }
 
-    receiveData(text, src) { // Receive data, optionally trimming padding
-        const { prefix, suffix } = this.modulo.config.fetchqueue.filePadding;
-        if (text && text.startsWith(prefix) && prefix && text.trim().endsWith(suffix)) {
-            text = text.trim().slice(prefix.length, 0 - suffix.length); // Clean
-        }
+    receiveData(text, src) {
         this.data[src] = text; // Keep retrieved data cached here for sync route
         const resolveCallbacks = this.queue[src]; // Stash the queue of waiting CBs
         delete this.queue[src];
@@ -620,27 +611,26 @@ modulo.register('core', class FetchQueue {
 });
 
 modulo.register('processor', function src (modulo, def, value) {
-    const { getParentDefPath } = modulo.registry.utils;
-    def.Source = (new window.URL(value, getParentDefPath(modulo, def))).href;
-    modulo.fetchQueue.fetch(def.Source).then(text => {
-        def.Content = (text || '') + (def.Content || '');
+    const { getParentDefPath, trimFileLoader } = modulo.registry.utils;
+    try { def.Source = (new window.URL(value, getParentDefPath(modulo, def))).href;
+    } catch { }
+    modulo.fetchQueue.fetch(def.Source || value).then(text => {
+        def.Content = trimFileLoader(text || '') + (def.Content || '');
     });
 });
 
 modulo.register('processor', function srcSync (modulo, def, value) {
     modulo.registry.processors.src(modulo, def, value);
-    return true; // Only difference is return "true" for "wait" (TODO: Refactor to "return def.SrcAsync ? false" then specify on Configuration)
+    return true; // Only difference is return "true" for "wait"
 });
 
 modulo.register('processor', function defTarget (modulo, def, value) {
-    const resolverName = def.DefResolver || 'ValueResolver'; // TODO: document
+    const resolverName = def.DefResolver || 'ValueResolver';
     const resolver = new modulo.registry.core[resolverName](modulo);
     const target = value === null ? def : resolver.get(value); // Target object
     for (const [ key, defValue ] of Object.entries(def)) { // Resolve all values
         if (key.endsWith(':') || key.includes('.')) {
             delete def[key]; // Remove & replace unresolved value
-            //resolver.set(/[^a-z]/.test(key) ? target : def, key, defValue); // TODO: Probably should be this -- not sure how this interacts with if
-            //resolver.set(/^[a-z]/.test(key) ? target : def, key, defValue);
             resolver.set(/^_?[a-z]/.test(key) ? target : def, key, defValue);
         }
     }
@@ -677,7 +667,6 @@ modulo.register('processor', function definedAs (modulo, def, value) {
 });
 
 modulo.register('processor', function contentCSV (modulo, def, value) {
-    // TODO: Rewrite into better little parser that handles quotes
     const parse = s => s.trim().split('\n').map(line => line.trim().split(','));
     def.Code = 'return ' + JSON.stringify(parse(def.Content || ''));
 });
@@ -712,12 +701,6 @@ modulo.register('processor', function contentMD (modulo, def, value) {
     }
     obj.body = def.Syntax ? syntax(obj.body, def.Syntax) : obj.body;
     def.Code = 'return ' + JSON.stringify(obj); // Serialize again as JSON
-});
-
-modulo.register('processor', function contentModulo (modulo, def, value) {
-    modulo.loadString(def.Content, 'modulo'); // Ensure gets loaded as global
-    def.Code = 'return { }'; // TODO: contentModulo is not documented
-    return true; // Always pause (since the above will fetch Src's)
 });
 
 modulo.register('processor', function dataType (modulo, def, value) {
@@ -764,12 +747,13 @@ modulo.register('coreDef', class Modulo { });
 modulo.register('coreDef', class Configuration { });
 modulo.register('coreDef', class Library { });
 modulo.register('coreDef', class File {
-    static FrameLoad (modulo, def, value) { // Register dev commands
-        if (window.parent) { // If child, send data back to parent
-            modulo.registry.commands._load = () => {
-                window.parent.postMessage(JSON.stringify(def), value)
-                modulo.cmdCallback(0, null, 'LOADING'); // Blank page
-            }
+    static FrameLoad (modulo, def, value) { // FrameLoad allows file:// proto
+        if (window.parent) { // If child, actually send data back to parent
+            const pre = document[document.body.children.length ? 'body' : 'head']
+                    .innerHTML.replace(/^([^\n]* file[^\n>]+>-?-?-?\n).*$/is, '$1')
+                    .replace(/=""/g, '').replace(/="([\w_\?\:\/-]+)"/g, '=$1');
+            modulo.registry.commands._load = () =>
+                window.parent.postMessage(pre + def.Content, value);
         }
     }
 });
@@ -942,7 +926,8 @@ modulo.register('coreDef', class Component {
     }
 
     buildCallback() {
-        // TODO - Faster: patches.filter(p => p[1].endsWith('Mount')).map(p => p[2].rawName).map(attr => `[${ attr }]`).join(',');
+        // TODO - Faster: patches.filter(p => p[1].endsWith('Mount'))
+        // .map(p => p[2].rawName).map(attr => `[${ attr }]`).join(',');
         this.element.setAttribute('modulo-mount-html', this.element.originalHTML)
         for (const elem of this.element.querySelectorAll('*')) {
             for (const name of elem.getAttributeNames()) {
@@ -1036,7 +1021,7 @@ modulo.register('coreDef', class Component {
         this._lifecycle([ 'event' ]);
         func(payload === undefined ? ev : payload);
         this._lifecycle([ 'eventCleanup' ]);
-        if (this.attrs.rerender !== 'manual') { // TODO: Change patch('rerender') to "requestRerender" (or update the HTMLElement method)
+        if (this.attrs.rerender !== 'manual') {
             ev.preventDefault(); // Prevent navigation from stopping rerender etc
             this.element.rerender(); // Rerender after event
         }
@@ -1286,7 +1271,6 @@ modulo.register('cpart', class Template {
 
     render(renderObj) {
         if (!this.renderFunc) { // Run module and get function
-            this.modulo.assert(this.conf.DefinitionName in this.modulo.registry.modules, this.conf.DefinitionName + ' not found'); // TODO - Move this to require
             this.renderFunc = this.modulo.registry.modules[this.conf.DefinitionName].call(window, this.modulo);
         }
         return this.renderFunc(Object.assign({ renderObj, global: this.modulo }, renderObj), this);
@@ -1582,7 +1566,7 @@ modulo.register('core', class Reconciler {
                     if (rival.hasAttribute('modulo-ignore')) { // Don't descend
                         // console.log('Skipping ignored node');
                     } else if (child.isModulo) { // is a Modulo component
-                        this.patch(child, 'rerender', rival);
+                        //this.patch(child, 'rerender', rival); // TODO! Rely on props
                     } else { //} else if (!this.shouldNotDescend) {
                         cursor.saveToStack();
                         cursor.initialize(child, rival);
@@ -1669,7 +1653,7 @@ modulo.register('core', class Reconciler {
 
 modulo.register('util', function initComponentClass (modulo, def, cls) {
     // Run factoryCallback static lifecycle method to create initRenderObj
-    const initRenderObj = { elementClass: cls }; // TODO: Refactor to "static classCallback" and pass on cls
+    const initRenderObj = { elementClass: cls }; // TODO: "static classCallback"
     for (const defName of def.ChildrenNames) {
         const cpartDef = modulo.definitions[defName];
         const cpartCls = modulo.registry.cparts[cpartDef.Type];
@@ -1801,6 +1785,10 @@ modulo.register('util', function getParentDefPath(modulo, def) {
     return pDef ? pDef.Source || getParentDefPath(modulo, pDef) : url;
 });
 
+modulo.register('util', function trimFileLoader(text) {
+    return text.replace(/^([^\n]*[ \n]file[^\n>]+>\*?\/?-?-?-?\n)/is, '');
+});
+
 modulo.register('util', function getAutoExportNames(text) {
     const { jsReserved, jsAutoExport } = modulo.config.syntax;
     const matches = text.match(new RegExp(jsAutoExport, 'g')) || []
@@ -1808,7 +1796,7 @@ modulo.register('util', function getAutoExportNames(text) {
     return symbols.filter(sym => sym && !(sym in jsReserved));
 });
 
-modulo.register('util', function makeStoreFS(modulo) { // TODO: Refactor state into core def!
+modulo.register('util', function makeStoreFS(modulo) { // TODO: Refactor with state
     const store = modulo.registry.utils.makeStore(modulo, { fdata: { }, log: [ ] });
     return Object.assign(store, { types: {} }, {
         propagate: modulo.registry.cparts.State.prototype.propagate.bind(store),
@@ -1817,7 +1805,7 @@ modulo.register('util', function makeStoreFS(modulo) { // TODO: Refactor state i
         removeItem: (key, val) => store.setItem(key, null), // Note: Deleting leaves log, etc
         setItem: (key, val) => {
             store.data.fdata[key] = val;
-            store.data.log.push([ key, (new Date()).getTime() / 1000]); // TODO: Merge with makeStore, and add this as opt
+            store.data.log.push([ key, (new Date()).getTime() / 1000]);
             store.propagate('fdata', store.data.fdata);
         },
     });
@@ -1868,9 +1856,6 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
         }
         return safe(s); // Always mark as safe, since for HTML tags
     };
-    const escapehtml = text => text && text.safe ? text : (text + '')
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-            .replace(/'/g, '&#x27;').replace(/"/g, '&quot;');
     const filters = {
         add: (s, arg) => s + arg,
         allow: (s, arg) => arg.split(',').includes(s) ? s : '',
@@ -1878,7 +1863,7 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
         capfirst: s => s.charAt(0).toUpperCase() + s.slice(1),
         combine: (s, arg) => s.concat ? s.concat(arg) : Object.assign({}, s, arg),
         default: (s, arg) => s || arg,
-        divide: (s, arg) => (s * 1) / (arg * 1), // TODO RM
+        divide: (s, arg) => (s * 1) / (arg * 1),
         divisibleby: (s, arg) => ((s * 1) % (arg * 1)) === 0,
         dividedinto: (s, arg) => Math.ceil((s * 1) / (arg * 1)),
         escapejs: s => JSON.stringify(String(s)).replace(/(^"|"$)/g, ''),
@@ -1892,7 +1877,6 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
         multiply: (s, arg) => (s * 1) * (arg * 1),
         number: (s) => Number(s),
         pluralize: (s, arg) => (arg.split(',')[(s === 1) * 1]) || '',
-        size: s => new Blob([ JSON.stringify(s) ]).size - 2, // the -2 is the "" wrapper // TODO RM
         skipfirst: (s, arg) => Array.from(s).slice(arg || 1),
         subtract: (s, arg) => s - arg,
         trim: (s, arg) => s.replace(new RegExp(`^\\s*${ arg = arg ?
@@ -1901,13 +1885,12 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
         type: s => s === null ? 'null' : (Array.isArray(s) ? 'array' : typeof s),
         renderas: (rCtx, template) => safe(template.render(rCtx)),
         reversed: s => Array.from(s).reverse(),
-        round: (s, arg) => Math.round(s * Math.pow(10, arg)) / Math.pow(10, arg), // TODO RM?
         upper: s => s.toUpperCase(),
         urlencode: (s, arg) => (window[arg ? 'encodeURIComponent' : 'encodeURI'](s)).replace(/#/g, '%23'),
         yesno: (s, arg) => `${ arg || 'yes,no' },,`.split(',')[s ? 0 : s === null ? 2 : 1],
     };
     const { values, keys, entries } = Object;
-    const extra = { tagswap, get, safe, values, keys, entries, escapehtml, syntax };
+    const extra = { tagswap, get, safe, values, keys, entries, syntax };
     return Object.assign(filters, extra);
 })();
 
@@ -1932,22 +1915,18 @@ modulo.registry.templateModes = {
 };
 
 modulo.registry.templateTags = {
+    'comment': () => ({ start: "/*", end: "*/"}),
     'debugger': () => 'debugger;',
-    'if': (text, tmplt) => {
-        // Limit to 3 (L/O/R)
-        const [ lHand, op, rHand ] = tmplt.parseCondExpr(text);
-        const condStructure = !op ? 'X' : tmplt.opAliases[op] || `X ${op} Y`;
-        const condition = condStructure.replace(/([XY])/g,
-            (k, m) => tmplt.parseExpr(m === 'X' ? lHand : rHand));
-        const start = `if (${condition}) {`;
-        return { start, end: '}' };
-    },
     'else': () => '} else {',
     'elif': (s, tmplt) => '} else ' + tmplt.tags['if'](s, tmplt).start,
-    'comment': () => ({ start: "/*", end: "*/"}),
-    'include': (text) => `OUT.push(CTX.${ text.trim() }.render(CTX));`,
-    'for': (text, tmplt) => {
-        // Make variable name be based on nested-ness of tag stack
+    'empty': (text, {stack}) => { // Empty only runs if loop doesn't run
+        const varName = 'G.FORLOOP_NOT_EMPTY' + stack.length;
+        const oldEndCode = stack.pop().end; // get rid of dangling for
+        const start = `${varName}=true; ${oldEndCode} if (!${varName}) {`;
+        const end = `}${varName} = false;`;
+        return { start, end, close: 'endfor' };
+    },
+    'for': (text, tmplt) => { // For loops translate into for..in
         const arrName = 'ARR' + tmplt.stack.length;
         const [ varExp, arrExp ] = text.split(' in ');
         let start = `var ${arrName}=${tmplt.parseExpr(arrExp)};`;
@@ -1960,13 +1939,20 @@ modulo.registry.templateTags = {
         start += `CTX.${valVar ? valVar : varExp}=${arrName}[KEY];`;
         return { start, end: '}'};
     },
-    'empty': (text, {stack}) => {
-        // Make variable name be based on nested-ness of tag stack
-        const varName = 'G.FORLOOP_NOT_EMPTY' + stack.length;
-        const oldEndCode = stack.pop().end; // get rid of dangling for
-        const start = `${varName}=true; ${oldEndCode} if (!${varName}) {`;
-        const end = `}${varName} = false;`;
-        return { start, end, close: 'endfor' };
+    'if': (text, tmplt) => {
+        // Limit to 3 (L/O/R)
+        const [ lHand, op, rHand ] = tmplt.parseCondExpr(text);
+        const condStructure = !op ? 'X' : tmplt.opAliases[op] || `X ${op} Y`;
+        const condition = condStructure.replace(/([XY])/g,
+            (k, m) => tmplt.parseExpr(m === 'X' ? lHand : rHand));
+        const start = `if (${condition}) {`;
+        return { start, end: '}' };
+    },
+    'include': (text) => `OUT.push(CTX.${ text.trim() }.render(CTX));`,
+    'with': (text, tmplt) => {
+        const [ varExp, varName ] = text.split(' as ');
+        const code = `CTX.${ varName }=${ tmplt.parseExpr(varExp) };\n`;
+        return { start: 'if(1){' + code, end: '}' };
     },
 };
 
@@ -1975,24 +1961,23 @@ modulo.register('command', function build (modulo) {
     modulo.preprocessAndDefine(modulo.cmdCallback, 'BuildCommand');
 });
 
-modulo.register('command', function edit ({ argv, fetchQueue, definitions, stores }) {
-    const setter = ([ p, d ]) => stores.BUILD.setItem( // Save as bare name
-        (/^(\.?\?.*)$/.exec(p) ? location.pathname : p).split(/\//g).pop(), d);
-    if (argv[1] === 'new') {
-        fetchQueue.data['new-page.html'] = '<script src=Modulo.html></script>' +
-            '<script File type=md>---\nfoo:bar\n---\n\n## Lorem Ipsum\n\n\n';
-    }
-    modulo.repeatProcessors(null, 'BuildCommandBuilders', () => {
-        Object.entries(fetchQueue.data).forEach(setter); // Stash deps
-        modulo.cmdCallback(0, stores.BUILD.data.log[0][0]); // Open first
-    })
+modulo.register('command', function edit ({ argv, config, fetchQueue, stores }) {
+    window._globalFS = { _cache: modulo.stores.BUILD.data.fdata };
+    const setter = ([ p, d ]) => stores.BUILD.setItem(p.split(/\//g).pop(), d);
+    Object.assign(fetchQueue.data, config._dev['preset_' + argv[1]] || {});
+    modulo.fetchQueue.fetch('?').then(text => {
+        modulo.repeatProcessors(null, 'BuildCommandBuilders', () => {
+            Object.entries(fetchQueue.data).forEach(setter);
+            modulo.cmdCallback(0, stores.BUILD.data.log[0][0]); // Open first
+        });
+    });
 });
 
 modulo.register('command', function _default (modulo) { // Show |%| console menu
     const font = 'font-size: 28px; padding:0 8px 0 8px; border:2px solid #000;';
     const names = Object.keys(modulo.registry.commands).filter(s => !s.startsWith('_'));
     const gets = names.map(s => `get ${ s }(){location.href+="?argv=${ s }"}`);
-    const aStr = JSON.stringify([ '%c%', font, names.join(', ') ]);
+    const aStr = JSON.stringify([ '%cᵐ°dᵘ⁄o', font, names.join(', ') ]);
     Function(`console.log(...${ aStr },new (class {${ gets.join('\n') }}))`)();
     modulo.cmdCallback(0, false); // default behavior, skip dashboard
 });
