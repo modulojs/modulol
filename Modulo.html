@@ -8,52 +8,439 @@ copyright: 2025 MichaelB - LGPLv3
     and license remains intact with Modulo.js framework source code itself or
     direct derivitives, and/or scaffolded projects or training-derived code.
 ---
-//md: v0.1.0pre */
-if (typeof window === "undefined") { // md: # ᵐ°`d`ᵘ⁄`o`
-    var window = {}; // md: #### `%` **[Create Markdown »](?argv=edit&argv=md)**
-}// md:  #### `%` **[Create Component »](?argv=edit&argv=cmp)**
-// md:  #### `%` **[Create Library »](?argv=edit&argv=lib)**
+// */ // md: # ᵐ°`d`ᵘ⁄`o`
+if (typeof window === "undefined") {//md:####`%` [Create Markdown »](?argv=newmd)
+    var window = {}; // md:####`%` [Create App »](?argv=newapp)
+} // md:####`%` [Create Library »](?argv=newlib)
 window.Modulo = function Modulo () {
-    window.Modulo.instanceID = window.Modulo.instanceID || 0; // md: ---
-    this.id = ++window.Modulo.instanceID; // md: ## Help
-    Object.assign(this, {
-        _connectedQueue: [],
-        _drainQueue: () => {
-            while (this._connectedQueue.length > 0) {
-                this._connectedQueue.shift().moduloMount();
-            }
-        },
+    window.Modulo.instanceID = window.Modulo.instanceID || 0;//md:---
+    this.id = ++window.Modulo.instanceID; // md: ## About ᵐ°dᵘ⁄o
+    Object.assign(this, { // md: Modulo is a [single-file](?argv=edit) frontend
+        _connectedQueue: [], // md: framework packed with features for HTML,
+        _drainQueue: () => { // md: JS, and even Markdown. Simple embed a Modulo
+            while (this._connectedQueue.length > 0) {//md: definition in any
+                this._connectedQueue.shift().moduloMount(); //md:HTML file and
+            } //md:get tools for web components, templating, site generation,
+        }, // md:content management, and scaffolding, all with local file support.
         cmdCallback: (cmdStatus = 0, edit = null, html = null) => {
             this.cmdStatus = cmdStatus;
-            html = html || `<devlib-Dashboard edit="${ edit || '' }">`;
-            if (edit || edit === null) { // null = empty, false = no replace
+            if (edit || edit === null) { // null = most recent, false = no replace
+                const { log } = this.stores.BUILD.data; // Edit last logged
+                edit = edit || log.length ? log[log.length - 1][0] : '';
+                html = html || `<modulo-Editor view="${ edit }" edit="${ edit }">`;
                 window.document.body.innerHTML = html;
-            }
-        },
-        assert: (value, ...info) => { // Simple "assert" helper
-            if (!value) {
+            } // md: **Hint:** Use the menu above to generate a new project, or
+        }, // md: use the editors below to learn features with live examples.
+        assert: (value, ...info) => {
+            if (!value) {  // md:---
                 console.error(this.id, ...info);
-                throw new Error(`Modulo Framework Assert Error: "${ Array.from(info).join(' ') }"`);
+                throw new Error(`Assert Error: "${ Array.from(info).join(' ') }"`);
             }
         },
         build: { },
         bundles: { script: [], style: [], link: [], meta: [],
                     modscript: [], modstyle: [] },
-        registry: { cparts: { }, coreDefs: { }, utils: { }, core: { },
-                    engines: { }, commands: { }, bundle: { },
-                    processors: { }, elements: { }, modules: { } },
+        registry: {  core: { }, processors: { }, // rm
+                     bundle: { }, elements: { }, modules: { } }, // keep
+        engine: { }, util: { }, core: { }, part: { }, command: { }, processor: { },
         config: Modulo.CONFIG, // By default, config is a global singleton
         definitions: { }, // For specific definitions (e.g. one Component)
         stores: { }, // Global data store (by default, only used by State)
     });
+    this.part = window.Modulo.ComponentParts(this);
+    for (const key of Object.keys(this.part)) { // TODO Legacy alias
+        this.part[key.toLowerCase()] = this.part[key];
+    } Object.assign(this.registry, { utils: this.util, cparts: this.part,
+                    coreDefs: this.core }) // TODO Legacy alias
 };
 
-Modulo.CONFIG = {
-    artifact: {
+Modulo.ComponentParts = modulo => {// md: ## Component Parts
+class Include { // md: ### Include
+    // md:```html=component<Include>
+    // md:<style>body { background: salmon }</style>
+    static LoadMode(modulo, def, value) { // md:</Include>
+        const { bundleHead, newNode } = modulo.util; // md:```
+        for (const elem of newNode(def.Content).children) { // md: Include loops
+            bundleHead(modulo, elem); // md: across it's children, bundling
+        } // md: all JS or CSS dependencies into appropriate "bundle" objects.
+    } // TODO: use "value" for async vs lazy
+    static Server({ part, util }, def, value) {
+        def.Content = (def.Content || '') + new part.Template(def.TagTemplate)
+            .render({ entries: util.keyFilter(def), value });
+    }
+    intitializedCallback(renderObj) { // md: When within a _Component_, it will
+        Include.LoadMode(this.modulo, this.conf, 'lazy'); // md: "lazy load"
+    } // md: and only load when the component first mounts on the screen.
+}
+
+class Props { // md: ### Props
+    // md:```html=component<Props quote name="Unknown"></Props>
+    // md:<Template>{{ props.name }} says "{{ props.quote }}"</Template>```
+    static factoryCallback({ elementClass }, def, modulo) {
+        const isLower = key => key[0].toLowerCase() === key[0]; // skip "-prefixed"
+        const keys = Array.from(Object.keys(def)).filter(isLower);
+        elementClass.observedAttributes.push(...keys); // (moidfy elementClass)
+    }
+    initializedCallback() { // md: Props loads attributes from the element
+        this.data = { }; // md: when the component is initialized (mounted):
+        Object.keys(this.attrs).forEach(attrName => this.updateProp(attrName));
+        return this.data; // md: E.g. `<x-App name="Jo"></x-App>` sets _name_.
+    }
+    updateProp(attrName) {
+        this.data[attrName] = this.element.hasAttribute(attrName) ?
+            this.element.getAttribute(attrName) : this.attrs[attrName];
+    } // md: **Remember: Props must all be listed!**
+    attrCallback({ attrName }) { // md: This allows "observedAttributes" in
+        if (attrName in this.attrs) { // md: to know which attributes to listen
+            this.updateProp(attrName); // md: to  so it will update data and
+            this.element.rerender();  // md: rerender if (and only if) the
+        } // md: element "observes" one of it's Props getting changed.
+    }
+}
+
+class Style { // md:### Style
+    // md:```html=component<Template><em>Stylish</em>, <big>look</big>!</Template>
+    // md:<Style>em { color: tomato } big { background: salmon }</Style>```
+    static AutoIsolate(modulo, def, value) { // md: Style "auto-isolates" CSS.
+        const { AutoIsolate } = modulo.part.Style; // (for recursion)
+        const { namespace, mode, Name } = modulo.definitions[def.Parent] || {};
+        if (value === true) { // md: By default, it uses the component's mode,
+            AutoIsolate(modulo, def, mode); // to decide "regular" vs "vanish".
+        } else if (value === 'regular' && !def.isolateClass) { // md: Regular
+            def.prefix = def.prefix || `${namespace}-${Name}`; // md: prefixes
+        } else if (value === 'vanish') { // md: each selector, while for
+            def.isolateClass = def.isolateClass || def.Parent; // md: "vanish"
+        } // md: it modifies the DOM and adds a class it creates to every
+    } // md: direct child. For "shadow", it adds the sheet to the shadow DOM.
+    static processSelector (modulo, def, selector) {
+        const hostPrefix = def.prefix || ('.' + def.isolateClass);
+        if (def.isolateClass || def.prefix) {
+            // Upgrade the ":host" or :root pseudo-elements to be the full name
+            const hostRegExp = new RegExp(/:(host|root)(\([^)]*\))?/, 'g');
+            selector = selector.replace(hostRegExp, hostClause => {
+                hostClause = hostClause.replace(/:(host|root)/gi, '');
+                return hostPrefix + (hostClause ? `:is(${ hostClause })` : '');
+            });
+        }
+        let selectorOnly = selector.replace(/\s*[\{,]\s*,?$/, '').trim();
+        if (def.isolateClass && selectorOnly !== hostPrefix) {
+            // Remove extraneous characters (and strip ',' for isolateSelector)
+            let suffix = /{\s*$/.test(selector) ? ' {' : ', ';
+            selectorOnly = selectorOnly.replace(/:(:?[a-z-]+)\s*$/i, (all, pseudo) => {
+                if (pseudo.startsWith(':') || def.corePseudo.includes(pseudo)) {
+                    suffix = ':' + pseudo + suffix; // Attach to suffix, on outside
+                    return ''; // Strip pseudo from the selectorOnly variable
+                }
+                return all;
+            });
+            def.isolateSelector.push(selectorOnly); // Add to array for later
+            selector = `.${ def.isolateClass }:is(${ selectorOnly })` + suffix;
+        }
+        if (def.prefix && !selector.startsWith(def.prefix)) {
+            // A prefix was specified, so prepend it if it doesn't have it
+            selector = `${ def.prefix } ${ selector }`;
+        }
+        return selector;
+    }
+    static ProcessCSS (modulo, def, value) {
+        if (def.isolateClass || def.prefix) {
+            if (!def.keepComments) {
+                value = value.replace(/\/\*.+?\*\//g, ''); // strip comments
+            }
+            def.isolateSelector = []; // Used to accumulate elements to select
+            value = value.replace(/([^\r\n,{}]+)(,(?=[^}]*{)|\s*{)/gi, selector => {
+                selector = selector.trim();
+                if (selector.startsWith('@') || selector.startsWith('from')
+                                              || selector.startsWith('to')) {
+                    return selector; // Skip (e.g. is @media or @keyframes)
+                }
+                return this.processSelector(modulo, def, selector);
+            });
+        }
+        if (def.urlReplace || (def.urlReplace === null && def.Source)) {
+            const key = def.urlReplace === 'absolute' ? 'href' : 'pathname';
+            value = value.replace(/url\(['"]?([^)]+?)['"]?\)/gi, (all, url) => {
+                if (url.startsWith('.')) { // If relative, make absolute
+                    return `url("${ (new window.URL(url, def.Source))[key] }")`;
+                }
+                return all; // Not a relative URL, return all text untampered
+            });
+        }
+        const { mode } = modulo.definitions[def.Parent] || {};
+        if (mode === 'shadow') { // Stash in the definition configuration
+            def.shadowContent = (def.shadowContent || '') + value;
+        } else { // Otherwise, just load as a regular modulo asset
+            const { newNode, bundleHead } = modulo.util;
+            bundleHead(modulo, newNode(value, 'STYLE'), modulo.bundles.modstyle);
+        }
+    }
+    domCallback(renderObj) {
+        const { mode } = modulo.definitions[this.conf.Parent] || {};
+        const { innerDOM, Parent } = renderObj.component;
+        const { isolateClass, isolateSelector, shadowContent } = this.conf;
+        if (isolateClass && isolateSelector && innerDOM) { // Attach classes
+            const selector = isolateSelector.filter(s => s).join(',\n');
+            for (const elem of innerDOM.querySelectorAll(selector)){
+                elem.classList.add(isolateClass);
+            }
+        }
+        if (shadowContent && innerDOM) { // Append to element to reconcile
+            const elem = this.modulo.util.newNode(shadowContent, 'STYLE');
+            innerDOM.append(elem);
+        }
+    }
+}
+
+class StaticData { // md:### StaticData
+    prepareCallback() { // md: Use for unchanging API or content. It will be
+        return this.conf.data; // md: fetched, converted, bundled, and exposed.
+    } //md:```html=component<Template><pre>{{ staticdata|json:4 }}</pre></Template>
+} //md:<StaticData -data-type=md -src=Modulo.html></StaticData>```
+
+class Script { // md:### Script
+    // md:```html=component<def Script>function hi(){ alert(element) }</def>
+    // md:<Template><button on.click=script.hi>See alert</button></Template>```
+    static factoryCallback(renderObj, def, modulo) {// md: Scripts run JS code.
+        const func = () =>
+            modulo.registry.modules[def.DefinitionName].call(window, modulo);
+        if (def.lifecycle === 'initialized') { // TODO rm / change this feature
+            return { initializedCallback: func }; // Attach as callback
+        } // md: By default, they run in static context (e.g. on page start).
+        return func();
+    }
+    static AutoExport (modulo, def, value) { // md: Scripts auto-export:
+        const { getAutoExportNames } = modulo.util;
+        if (def.lifecycle && def.lifecycle !== 'initialized') {
+            value = `function ${ def.lifecycle }Callback (renderObj) {${ value }}`;
+        } // md: Named functions (ie function foo, not =>) and classes are exposed
+        const { ChildrenNames } = modulo.definitions[def.Parent] || { };
+        const sibs = (ChildrenNames || []).map(n => modulo.definitions[n].Name);
+        sibs.push('component', 'element', 'cparts');
+        def.exportNames = def.exportNames || getAutoExportNames(value);
+        def.locals = def.locals || sibs.filter(name => value.includes(name));
+        def.Directives = def.exportNames.filter(s => s.match(/(Unmount|Mount)$/));
+        def.tempContent = value; // TODO: Refactor AutoExport + CodeTemplate
+    } // md: Internally, they have access to all component parts, and element.
+    initializedCallback(renderObj) { // md: When the component mounts, scripts will
+        // md: also register all callbacks, wrapping user functions as needed.
+        const script = renderObj[this.conf.Name];
+        this.eventCallback = (rObj) => { // Create eventCallback to set inner
+            const vars = { element: this.element, cparts: this.element.cparts };
+            const setLocal = script.setLocalVariables || (() => {});
+            setLocal(Object.assign(vars, rObj)); // Set inner vars (or no-op)
+        };
+        if (script.initializedCallback) { // If defined, trigger inner init
+            this.eventCallback(renderObj); // Prep before (used by lc=false)
+            Object.assign(script, script.initializedCallback(renderObj));
+            this.eventCallback(renderObj); // Prep again (used by lc=initialize)
+        } // md: Specifically, it registers any functions ending with Mount,
+        const isCB = /(Mount|Unmount|Callback)$/; // md: Unmount, or Callback.
+        for (const cbName of Object.keys(script)) {
+            if (cbName === 'initializedCallback' || !cbName.match(isCB)) {
+                continue; // Skip over initialized (already handled) and non-CBs
+            } // md: These become either directives, or lifecycle callbacks.
+            this[cbName] = arg => { // Arg: Either renderObj or directive obj
+                const renderObj = this.element.getCurrentRenderObj();
+                const script = renderObj[this.conf.Name]; // Get new render obj
+                this.eventCallback(renderObj); // Prep before lifecycle method
+                Object.assign(script, script[cbName](arg) || {});
+            };
+        }
+    }
+}
+
+class State { // md:### State
+    // md:```html=component<State msg="Lorem"></State>
+    // md:<Template>{{ state.msg }}: <input state.bind name=msg></Template>```
+    static factoryCallback(renderObj, def, modulo) {
+        if (def.Store) { // md: If a -store= is specified, it's global.
+            const store = modulo.util.makeStore(modulo, def);
+            if (!(def.Store in modulo.stores)) { // md: The first one
+                modulo.stores[def.Store] = store; // md: encountered
+            } else { // md: with that name will create the "Store".
+                Object.assign(modulo.stores[def.Store].data, store.data);
+            } // md: Subsequent usage will share and react to that one "Store".
+        } // md: Without -store=, it will be be private to each component.
+    }
+    initializedCallback(renderObj) {
+        const store = this.conf.Store ? this.modulo.stores[this.conf.Store]
+                : this.modulo.util.makeStore(this.modulo,
+                Object.assign(this.conf, renderObj[this.conf.Init]));
+        store.subscribers.push(Object.assign(this, store));
+        this.types = { range: Number, number: Number }
+        this.types.checkbox = (v, el) => el.checked;
+        return store.data;
+    }
+    bindMount({ el, nameSuffix, value, listen }) {
+        const name = value || el.getAttribute('name');
+        const val = this.modulo.util.get(this.data, name, this.conf.Dot);
+        this.modulo.assert(val !== undefined, `state.bind "${name}" undefined`);
+        const isText = el.tagName === 'TEXTAREA' || el.type === 'text';
+        const evName = nameSuffix ? nameSuffix : (isText ? 'keyup' : 'change');
+        // Bind the "listen" event to propagate to all, and trigger initial vals
+        listen = listen ? listen : () => this.propagate(name, el.value, el);
+        el.addEventListener(evName, listen);
+        this.boundElements[name] = this.boundElements[name] || [];
+        this.boundElements[name].push([ [ el, evName, listen ] ]);
+        this.propagate(name, val, null, [ el ]); // Trigger element assignment
+    }
+    bindUnmount({ el, nameSuffix, value }) {
+        const name = value || el.getAttribute('name');
+        const remainingBound = [];
+        for (const row of this.boundElements[name]) {
+            if (row[0] === el) {
+                row[0].removeEventListener(row[1], row[2]);
+            } else {
+                remainingBound.push(row);
+            }
+        }
+        this.boundElements[name] = remainingBound;
+    }
+    stateChangedCallback(name, value, el) {
+        this.modulo.util.set(this.data, name, value, this.conf.Dot);
+        if (!this.conf.Only || this.conf.Only.includes(name)) {
+            this.element.rerender();
+        }
+    }
+    eventCallback() {
+        this._oldData = Object.assign({}, this.data);
+    }
+    propagate(name, val, originalEl = null, arr = null) {
+        const elems = (this.boundElements[name] || []).map(row => row[0]);
+        const typeConv = this.types[ originalEl ? originalEl.type : null ];
+        val = typeConv ? typeConv(val, originalEl) : val; // Apply conversion
+        for (const el of (arr ? arr : this.subscribers.concat(elems))) {
+            if (originalEl && el === originalEl) { // don't propagate to original
+            } else if (el.stateChangedCallback) { // A callback was found, use
+                el.stateChangedCallback(name, val, originalEl);
+            } else if (el.type === 'checkbox') { // Check input use ".checkbox"
+                el.checked = !!val;
+            } else { // Normal inputs use ".value"
+                el.value = val;
+            }
+        }
+    }
+    eventCleanupCallback() {
+        for (const name of Object.keys(this.data)) {
+            this.modulo.assert(!this.conf.AllowNew && name in this._oldData,
+                `State variable "${ name }" is undeclared (no "-allow-new")`);
+            if (this.data[name] !== this._oldData[name]) {
+                this.propagate(name, this.data[name], this);
+            }
+        }
+        this._oldData = null;
+    }
+}
+
+class Template { // md: ### Template
+    static TemplatePrebuild (modulo, def, value) {
+        modulo.assert(def.Content, `Empty Template: ${def.DefinitionName}`);
+        const template = modulo.instance(def, { });
+        const compiledCode = template.compileFunc(def.Content);
+        const code = `return function (CTX, G) { ${ compiledCode } };`;
+        modulo.registry.processors.code(modulo, def, code);
+        delete def.Content; // md: Templates transform a "mini-language" into
+    } // md: a JavaScript function to generate a (typically) HTML DOM.
+    constructedCallback() {
+        // Combines conf from all sources: config, defaults, and "registered"
+        this.stack = []; // md: Using a tag stack, it will error on unclosed tags.
+        const { filters, tags, modes } = this.conf;
+        const { templateFilters, templateTags, templateModes } = this.modulo.registry;
+        Object.assign(this, this.modulo.config.template, this.conf);
+        // md: Templates have numerous built-in _filters_, _tags_, and _modes_.
+        this.filters = Object.assign({ }, templateFilters, filters);
+        this.tags = Object.assign({ }, templateTags, tags);
+        this.modes = Object.assign({ }, templateModes, modes);
+    }
+    initializedCallback() {
+        return { render: this.render.bind(this) }; // Export "render" method
+    }
+    constructor(text, options = null) { // md:In JavaScript, it's available:
+        if (typeof text === 'string') { // md: `new Template('Hi {{ a }}')`
+            window.modulo.instance(options || { }, null, this); // Setup object
+            this.conf.DefinitionName = '_template_template' + this.id; // Unique
+            const code = `return function (CTX, G) { ${ this.compileFunc(text) } };`;
+            this.modulo.registry.processors.code(this.modulo, this.conf, code);
+        }
+    }
+    renderCallback(renderObj) {
+        if (this.conf.Name === 'template' || this.conf.active) { // If primary
+            renderObj.component.innerHTML = this.render(renderObj); // Do render
+        }
+    }
+    parseExpr(text) {
+        // Output JS code that evaluates an equivalent template code expression
+        const filters = text.split('|');
+        let results = this.parseVal(filters.shift()); // Get left-most val
+        for (const [ fName, arg ] of filters.map(s => s.trim().split(':'))) {
+            const argList = arg ? ',' + this.parseVal(arg) : '';
+            results = `G.filters["${fName}"](${results}${argList})`;
+        }
+        return results;
+    }
+    parseCondExpr(string) {
+        // Return an Array that splits around ops in an "if"-style statement
+        const regExpText = ` (${this.opTokens.split(',').join('|')}) `;
+        return string.split(RegExp(regExpText));
+    }
+    toCamel(string) { // Takes kebab-case and converts toCamelCase
+        return string.replace(/-([a-z])/g, g => g[1].toUpperCase());
+    }
+    parseVal(string) {
+        // Parses str literals, de-escaping as needed, numbers, and context vars
+        const s = string.trim();
+        if (s.match(/^('.*'|".*")$/)) { // String literal
+            return JSON.stringify(s.substr(1, s.length - 2));
+        }
+        return s.match(/^\d+$/) ? s : `CTX.${ this.toCamel(s) }`
+    }
+    tokenizeText(text) {
+        // Join all modeTokens with | (OR in regex)
+        const { escapeRegExp } = this.modulo.util;
+        const re = '(' + this.modeTokens.map(escapeRegExp).join('|(').replace(/ +/g, ')(.+?)');
+        return text.split(RegExp(re)).filter(token => token !== undefined);
+    }
+    compileFunc(text) {
+        const { normalize } = this.modulo.util;
+        let code = 'var OUT=[];\n'; // Variable used to accumulate code
+        let mode = 'text'; // Start in text mode
+        const tokens = this.tokenizeText(text);
+        for (const token of tokens) {
+            if (mode) { // If in a "mode" (text or token), then call mode func
+                const result = this.modes[mode](token, this, this.stack);
+                if (result) { // Mode generated text output, add to code
+                    const comment = !this.disableComments ? '' :
+                        ' // ' + JSON.stringify(normalize(token).trim());
+                    code += `  ${ result }${ comment }\n`;
+                }
+            }
+            // FSM for mode: ('text' -> null) (null -> token) (* -> 'text')
+            mode = (mode === 'text') ? null : (mode ? 'text' : token);
+        }
+        code += '\nreturn OUT.join("");'
+        const unclosed = this.stack.map(({ close }) => close).join(', ');
+        this.modulo.assert(!unclosed, `Unclosed tags: ${ unclosed }`);
+        return code;
+    }
+    render(local) {
+        if (!this.renderFunc) {
+            const mod = this.modulo.registry.modules[this.conf.DefinitionName];
+            this.renderFunc = mod.call(window, this.modulo);
+        }
+        return this.renderFunc(Object.assign({ local, global: this.modulo }, local), this);
+    }
+} // md: ---
+return { State, Props, Script, Style, Template, StaticData, Include };
+}// md: ## Configuration
+// md: All definitions "extend" a base configuration. See below:
+Modulo.CONFIG = { //md:```html=component<Template>{% for t, c in global.config %}
+    artifact: { //md:<h4>{{ t }}</h4><pre>{{ c|json:2 }}</pre>{% endfor %}
         tagAliases: { 'js': 'script', 'ht': 'html', 'he': 'head', 'bo': 'body' },
-        pathTemplate: 'modulo-build-{{ hash }}.{{ def.name }}',
+        pathTemplate: 'modulo-build-{{ hash }}.{{ def.name }}', //md:</Template>```
+        DefLoaders: [ 'DefTarget', 'DefinedAs', 'DataType', 'Src', 'build|Register' ],
         BuildCommandBuilders: [ 'FilterContent', 'Collect', 'Bundle', 'LoadElems' ],
         BuildCommandFinalizers: [ 'Remove', 'SaveTo' ],
+        Preprocess: true, // true is "toss code after"
         DefinedAs: 'name',
         SaveTo: 'BUILD', // Use "BUILD" filesystem-like store interface
         FilterContent: 'trim|tagswap:config.artifact.tagAliases',
@@ -73,14 +460,14 @@ Modulo.CONFIG = {
         BuildCommandBuilders: [ 'Prebuild|BuildLifecycle', 'BuildLifecycle' ],
         Directives: [ 'onMount', 'onUnmount' ],
         DirectivePrefix: '', // Makes "component.on.click" into "on.click"
-        CodeTemplate: `{% if def.help %}//md\: {{ def.help }}{% endif %}
-            const def = modulo.definitions['{{ def.DefinitionName }}'];
-            class {{ def.className }} extends {{ def.baseClass|default:'window.HTMLElement' }} {
-                constructor() { super(); this.init(); }
-                static observedAttributes = [ ]; }
-            modulo.registry.utils.initComponentClass(modulo, def, {{ def.className }});
-            window.customElements.define(def.TagName, {{ def.className }});
-            return {{ def.className }};
+        CodeTemplate: `
+const def = modulo.definitions['{{ def.DefinitionName }}'];
+class {{ def.className }} extends {{ def.baseClass|default:'window.HTMLElement' }} {
+    constructor() { super(); this.init(); }
+    static observedAttributes = [ ]; }
+modulo.util.initComponentClass(modulo, def, {{ def.className }});
+window.customElements.define(def.TagName, {{ def.className }});
+return {{ def.className }};
         `.replace(/^\s+/gm, ''),
     },
     configuration: { // Base configuration of <Configuration> itself
@@ -88,28 +475,32 @@ Modulo.CONFIG = {
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'Src|SrcSync', 'Content|Code', 'DefinitionName|MainRequire' ],
     },
     contentlist: {
-        DataType: 'CSV', // Default behavior is always use "CSV" format (no auto detect)
-        RequireData: 'DefinitionName',
+        DataType: 'CSV', // Use "CSV" (no autodetect)
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'DataType', 'Src', 'commands|Register' ],
         DefBuilders: [ 'ContentCSV', 'ContentJSON', 'ContentJS', 'Code', 'RequireData', 'Load' ],
+        Preprocess: true, // true is "toss code after"
+        Multi: 'data', // Loop through data and apply proc after
+        RequireData: 'DefinitionName',
     },
+    domcursor: { }, // (empty)
     domloader: {
         topLevelTags: [ 'modulo', 'file' ],
         genericDefTags: { def: 1, script: 1, template: 1, style: 1 },
     },
+    domreconciler: { }, // No settings!
     file:  {
-        DataType: 'TXT',
+        DataType: 'TXT', // TODO: Add JS and CSS DataTypes to clean comments
         Syntax: 'markdown',
         FrameLoad: '*', // Will try to load itself to parent's frame
-        RequireData: 'DefinitionName',
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'type|DataType', 'Src', 'FrameLoad' ],
         DefBuilders: [ 'ContentMD', 'ContentCSV', 'ContentTXT', 'ContentJSON', 'ContentJS', 'Code', 'RequireData' ],
+        Preprocess: true, // true is "toss code after"
+        RequireData: 'DefinitionName',
     },
     include: {
         LoadMode: 'bundle',
-        ServerTemplate: 'https://{{ server }}/{{ path }}',
-        TagTemplate: '{% if isCSS %}<link rel="stylesheet" href="{{ url }}" />' +
-                     '{% else %}<script src="{{ url }}"></' + 'script>{% endif %}',
+        ServerTemplate: '{% for p, v in entries %}<script src="https://' +
+                     '{{ server }}/{{ v }}"></' + 'script>{% endfor %}',
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'Src', 'Server', 'LoadMode' ],
     },
     library:  {
@@ -118,8 +509,8 @@ Modulo.CONFIG = {
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'Src', 'Content' ],
     },
     modulo: {
-        build: { mainModules: [ ], ordered: [ ], unordered: [ ] },
-        defaultContent: '<meta charset="utf8" /><devlib-View>',
+        build: { mainModules: [ ], defTags: { } },
+        defaultContent: '<!DOCTYPE html><meta charset="utf8" /><modulo-Page>',
         scriptSelector: "script[src$='mdu.js'],script[src$='Modulo.js']," +
                         "script[src='?'],script[src$='Modulo.html']",
         version: '0.1.0pre',
@@ -141,7 +532,7 @@ Modulo.CONFIG = {
             setLocalVariables: function (o) {
                 {% for n in def.locals %}{{ n }} = o.{{ n }};{% endfor %}
             }
-        }`.replace(/\s\s+/g, ' ') /* + '{% if def.Source %}\n//# sourceURL={{ def.Source }}{% endif %}'*/,
+        }`.replace(/\s\s+/g, ' ')
     },
     state: {
         Directives: [ 'bindMount', 'bindUnmount' ],
@@ -158,9 +549,10 @@ Modulo.CONFIG = {
     },
     staticdata:  {
         DataType: '?', // Default behavior is to guess based on Src ext
-        RequireData: 'DefinitionName',
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'DataType', 'Src', 'FilterContent' ],
-        DefBuilders: [ 'ContentCSV', 'ContentTXT', 'ContentJSON', 'ContentJS', 'Code', 'RequireData' ],
+        DefBuilders: [ 'ContentMD', 'ContentCSV', 'ContentTXT', 'ContentJSON', 'ContentJS', 'Code', 'RequireData' ],
+        Preprocess: true, // true is "toss code after"
+        RequireData: 'DefinitionName',
     },
     syntax: { //  `config.syntax` registers the markup languages supported by |syntax:
         jsAutoExport: /(function|class)\s+(\w+)/, // How Script tags export
@@ -189,7 +581,7 @@ Modulo.CONFIG = {
         markdown: [ //  **markdown** is a (simple) Markdown implementation
             [ null, 'syntax', 'text' ],
             [ /```([a-z]*)([a-z=]*)\n?(.+?)\n?```/igs,
-                 '<devlib-Edit mode="$1" demo$2 value="$3"></devlib-Edit>' ],
+                 '<modulo-Editor mode="$1" demo$2 value="$3"></modulo-Editor>' ],
             [ /^(#+)\s*(.+)$/gm, '<h2 h="$1">$2</h2>' ],
             [ /!\[([^\]]+)\]\(([^\)]+)\)/g, '<img="$2" alt="$1" />' ],
             [ /\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>' ],
@@ -197,8 +589,8 @@ Modulo.CONFIG = {
             [ /`([^`]+)`/g, '<code>$1</code>' ],
             [ /\*\*([^\*]+)\*\*/g, '<strong>$1</strong>' ],
             [ /\*([^\*]+)\*/g, '<em>$1</em>', ],
+            [ /\n+\r?\n---+/g, '</p><hr />' ],
             [ /(\n|>)\r?\n[\n\r]*/g, '$1<p>' ],
-            [ /<p>----*?/g, '</p><hr />' ],
         ],
         html: [ //  **html** syntax highlights some common html / templating
             [ null, 'syntax', 'plaintext' ],
@@ -226,105 +618,117 @@ Modulo.CONFIG = {
         },
     },
     _dev: {
-        'preset_md': { 'new-page.html': '<script src=Modulo.html></' +
-            'script><script File type=md>---\na:bc\n---\n\n## New doc\n\n' },
-        preset_cmp: { 'new-component.html': '<script src=Modulo.html></' +
-            'script>\n<template Modulo>\n<Component name="Greet">\n<Template>' +
-            '\nHello\n</Template>\n</Component>\n</template>\n\n<x-Greet></x-Greet>' },
-        preset_lib: { 'new-library.html': '<script src=Modulo.html></' +
-            'script><template File -syntax=mdocs type=md>\n<!--\nm' +
-            'd:### Usage\nmd\:See:\nmd\:```html=embed\nmd\:<script ' +
-            'Modulo src=Modulo.html -src="new-library.html"></' + 'script>\nm' +
-            'd:<x-Greet>World</x-Greet>\nmd\:```\n-->\n\n<Component ' +
-            'name="Greet" -src="Greet.html"></Component>',
-            'Greet.html': '<script src=Modulo.html></' + 'script><template ' +
-                'File -syntax=mdocs type=md>\nmd\:...\n<Template>\n' + 
-                'Hello<slot></slot>\n</Template>' },
-        artifact: `<Artifact name="css" -bundle="link,modstyle,style">
-                {% for id in def.ids %}{{ def.data|get:id|safe }}{% endfor %}
-            </Artifact>
-            <Artifact name="js" -bundle="script,modscript" -collect="?">
-                window.moduloBuild = true;
-                {% for id in def.ids %}
-                    {{ def.data|get:id|safe }};{% endfor %}
-                modulo.definitions = { {% for name, value in definitions %}
-                    {% if name|first is not "_" %}{{ name }}: {{ value|json|safe }},{% endif %}
-                {% endfor %} };
-                {% for name in config.modulo.build.mainModules %}{% if name|first is not "_" %}
-                    modulo.registry.modules.{{ name }}.call(window, modulo);
-                {% endif %}{% endfor %}
-            </Artifact>
-            <Artifact name="html" path-template="{{ config.path-name|default:'index.html' }}"
-                                             prefix="<!DOCTYPE HTML>" -remove="modulo,[modulo]">
-                <ht><he>{{ doc.head.innerHTML|safe }}
-                    <link rel="stylesheet" href="{{ definitions._artifact_css.path }}"></link>
-                    <js async src="{{ definitions._artifact_js.path }}"></js>
-                </he><bo>{{ doc.body.innerHTML|safe }}</bo></ht>
-            </Artifact>`,
-        component: `<Component namespace="devlib" mode="shadow" name="Edit">
-            <Props value mode demo file dash></Props>
-            <Template -name="demo_embed">{{ value|safe }}</Template>
-            <Template -name="demo_component">
-            <js Modulo src=Modulo.html><Component name=x>{{ value|safe }}</Component></js><x-x>
-            </Template><Template><article>
-            {% if props.mode %}<pre style="position:absolute;height:{{ script.lc }}px; z-index: -1">
-                {{ state.value|syntax:props.mode|safe }}</pre>{% endif %}
-            {% with render-obj|get:script.demo as demo %}{% if demo %}
-            <textarea spellcheck=false state.bind name=value
-                 style="height:{{ script.lc }}px"></textarea><div></div>
-            <iframe style="height:{{ script.lc }}px;" srcdoc="{{ state|renderas:demo|add:'' }}"
-                 loading=lazy></iframe>{% endif %}{% endwith %}</article></Template><State></State>
-            <Style>pre,textarea,iframe{display:block;color:black;background:transparent;
-            font-size:18px;white-space:pre;text-align:start;line-height:1;
-            overflow-wrap:break-word;margin:0;padding:10px;box-sizing: content-box;
-            border:1px dotted #111; font-family: monospace; }
-            iframe{background:white;width:100%}
-            textarea{resize:none;color:#00000000;caret-color:#000;overflow:none}
-            article{display:grid;grid-template-columns: 1fr 1px 1fr; width:98%;margin:0.5%}</Style>
-            <def Script>function prepareCallback() {
-                if (!('value' in state) || (state.file !== props.file)) {
-                    window._globalFS = { _cache: modulo.fetchQueue.data };
-                    Object.assign(state, props, { value: props.file ? getFile()
-                         : ('value' in state ? state.value : props.value) });
-                }
-                return { demo: 'demo_' + props.demo, lc: state.value.split('\\n').length * 18 };
-            }
-            function getFile() { return modulo.stores.BUILD.getItem(props.file) }
-            function updateCallback() { if (state.file ? state.value : 0) {
-                modulo.stores.BUILD.setItem(state.file, state.value); // save
-            } }</def>
-        </Component>
-        <Component namespace="devlib" name="Dashboard">
-            <Props edit></Props>
-            <Template>
-                <h1><a href="?argv={{ global.argv|join:'&argv='|safe }}">&#x27F3; {{ global.argv|join:' ' }}</a></h1>
-                {% if proc.log|length %}<aside>{% for row in proc.log %}<iframe
-                    src="{{ row|get:0 }}"></iframe>{% endfor %}</aside>{% endif %}
-                <pre>{% for row in proc.log %}{{ row|reversed|join:" \t" }}<br />{% endfor %}</pre>
-            <pre>{% for path, text in build.fdata %}
-                <a download="{{ path }}" href="data:text/plain;charset=utf-8,{{ text|urlencode:true }}"
-                    >{{ path }}</a> ({{ text|length }}){% endfor %}</pre>
-            <select state.bind name="edit"><option value="">---</option>
-            {% for p, t in build.fdata %}
-                <option value="{{ p }}">{{ p }}</option>{% endfor %}</select>
-                {% for p, t in build.fdata %}
-                {% if state.edit is p %}<devlib-Edit file="{{ p }}" mode=html demo=embed></devlib-Edit>{% endif %}
-                {% endfor %}
-            </Template>
-            <def Script>function prepareCallback() {
-                if (!('edit' in state)) { Object.assign(state, props); }
-            }</def><State></State>
-            <State -name="build" -store="BUILD"></State>
-            <State -name="proc" -store="PROC"></State>
-            <Style>aside { max-width: calc(100vw - 400px); float: right; }</Style>
-        </Component><Component mode="vanish" namespace="devlib" name="View"><Template>
-            {% with global.definitions|get:'file.data' as f %}{{ f.body|safe }}{% endwith %}
-        </Template><Style>:root{line-height:1.5;} h2[h]{margin:60px 0 0 0;font-family:sans-serif;font-weight:500;}
-        h2[h='#']{font-size:56px} h2[h='##']{font-size:36px;}h2[h='###']{font-size:30px}</Style></Component>`,
-    },
+artifact: `
+<Artifact name="css" -bundle="link,modstyle,style" build>
+    {% for id in def.ids %}{{ def.data|get:id|safe }}{% endfor %}
+</Artifact>
+<Artifact name="js" -bundle="script,modscript" -collect="?" build>
+    window.moduloBuild = true;
+    {% for id in def.ids %}{{ def.data|get:id|safe }};{% endfor %}
+    modulo.definitions = { {% for name, value in definitions %}
+        {% if name|first is not "_" %}{{ name }}: {{ value|json|safe }},{% endif %}
+    {% endfor %} };
+    {% for name in config.modulo.build.mainModules %}{% if name|first is not "_" %}
+        modulo.registry.modules.{{ name }}.call(window, modulo);
+    {% endif %}{% endfor %}
+</Artifact>
+<Artifact name="html" path-template="{{ config.path-name|default:'index.html' }}"
+     prefix="<!DOCTYPE HTML>" -remove="modulo,[modulo]" build>
+    <ht><he>{{ doc.head.innerHTML|safe }}
+        <link rel="stylesheet" href="{{ definitions._artifact_css.path }}"></link>
+        <js async src="{{ definitions._artifact_js.path }}"></js>
+    </he><bo>{{ doc.body.innerHTML|safe }}</bo></ht>
+</Artifact><Artifact name="edit" build=edit -collect=? -save-reqs
+></Artifact><script Artifact name=new_app path="App.html" 
+build=newlib><js src=Modulo.html></js><template File type=txt>
+<Template>\n<h1>"My App"</h1>\n<main>\n<slot>\n</slot>\n</main>\n</Template>
+<Style>\n:root {\nbackground: linear-gradient(teal, indigo);\ndisplay: block;\n}
+main,h1 {\nmargin: 10px;\npadding: 10px;\nbackground: #ffffff88;\n}\n</Style>
+<\/script>
+<script Artifact name=new path=static/index.html build=newapp -collect=? -save-reqs>
+<js src=Modulo.html></js><template File type=txt>\n<Component name=App>
+{% for line in definitions._artifact_new_app.Content|lines|skipfirst %}
+{{ line|safe }}{% endfor %}\n</Component>
+<\/script>
+<script Artifact name=new path=index.html build=newapp>
+    <js Modulo src=Modulo.html -src=static/></js><x-App>\n<p>Example</p>\n</x-App>
+<\/script>
+<script Artifact name=new path=new-lib.html d:=["Lorem","Ipsum"] build=newlib -collect=? -save-reqs>
+<js src=Modulo.html></js><template File -syntax=mdocs type=md>
+<!--\nmd\:# My Lib\n{% for i,L in def.d %}\nmd\:### Usage {{i|number|add:1}}: {{L}}
+        md\:{{def.d|join:', '}}:\nmd\:\`\`\`html=embed
+        md\:<js Modulo src=Modulo.html -src="new-lib.html"></js>
+        md\:<mylib-App>{{L}}</mylib-App>\nmd\:\`\`\`\n{% endfor %}
+-->\n<Component\nname=App\nnamespace=mylib\n-src="App.html"\n></Component>
+<\/script>
+<script Artifact name=new path=new-page.html build=newmd -collect=? -save-reqs>
+<js src=Modulo.html></js><js File type=md>---\ndate: {{config.date}}\n---
+## New page\nExample **content**, link: [Edit Me](?argv=edit)<\/script>`,
+component: `
+<Component namespace=modulo name=Frame>
+<Props file store=BUILD></Props><State -dot=| -name=build -store=BUILD></State>
+<State -dot=| -name=cache -store=CACHE></State><Template>
+{% with local|get:props.store|get:'fdata'|get:props.file|default:null as value %}
+    <iframe style="width:100%;height:100%;border:0;border:1px dotted #111;"
+    srcdoc="{% if value is null %}<h1>404/{{ props|json }}</h1>{% else %}
+    {{ value }}{% endif %}" loading=lazy></iframe>{% endwith %}</Template>
+</Component><Component namespace=modulo mode=shadow name=TextEdit>
+<Props store=build mode=html font=17 file></Props>
+<State -dot=| -name=build -store=BUILD></State>
+<State -dot=| -name=cache -store=CACHE></State><Template>
+{% with local|get:props.store|get:'fdata'|get:props.file|default:null as value %}
+{% with value|lines|length|multiply:props.font as hg %}<div><pre style="
+    font-size:{{props.font}}">{{ value|syntax:"html"|safe }}</pre><textarea
+    {{props.store}}.bind="fdata|{{props.file}}" spellcheck=false
+    style="top:0;left:0;position:absolute;height:{{hg}}px;
+    font-size:{{props.font}}"></textarea></div>{% endwith %}{% endwith %}
+</Template><Style>pre,textarea{display:block;color:black;background:transparent;
+    white-space:pre;text-align:start;line-height:1;overflow-wrap:break-word;
+    margin:0;padding:10px;box-sizing:content-box;border:1px dotted #111;
+    font-family: monospace}div{display:block;position:relative;overflow:auto;
+    width:100%}textarea{resize:none;color:#00000000;caret-color:#000;width:100%}
+</Style></Component><Component namespace=modulo name=Editor>
+<Props mode view edit demo value></Props><State -dot=| -name=proc -store=PROC></State>
+<State -dot=| -name=build -store=BUILD></State><State -dot=| -name=cache -store=CACHE></State>
+<State fields:='{"edit":"TextEdit","view":"Frame"}' -init=props></State>
+<Template -name="demo_embed">{{ props.value|safe }}</Template>
+<script Template -name="demo_component"><js src=Modulo.html></js><template Modulo>
+<Component name=App>\n{{ props.value|safe }}\n</Component>\n</template>\n<x-App></x-App><\/script>
+<Template><div style="width:100%;display:grid; grid-template-columns: auto
+    {{ state.edit|yesno:'1fr,auto' }} 22px {{ state.view|yesno:'1fr,auto' }}"><div>
+    {% if not props.demo %}<h1><a href="?argv={{ global.argv|join:'&argv='|safe }}">
+    &#x27F3; {{ global.argv|join:' ' }} &nbsp;</a></h1> {% if proc.log|length %}
+    <div>{% for row in proc.log %}<iframe src="{{ row|get:0 }}"></iframe>
+    {% endfor %}</div>{% endif %}<pre>{% for row in proc.log %}
+    {{ row|reversed|join:" \t" }}<br />{% endfor %}</pre><pre>
+    {% for path, text in build.fdata %}<a download="{{ path }}"
+        href="data:text/plain;charset=utf-8,{{ text|urlencode:true }}"
+        >{{ path }}</a> ({{ text|length }})<br />{% endfor %}</pre>{% endif %}</div>
+    {% for field, tag in state.fields %}<div>{% if not props.demo %}
+    <label>{{ field|capfirst }} <select state.bind name="{{ field }}">
+    <option value="">--</option>{% with local|get:state.store|get:'fdata' as fs %}
+    {% for p, t in fs %}<option value={{p}}>{{ p }}</option>{% endfor %}{% endwith %}
+    </select></label>{% endif %}{% if state|get:field %}
+    <modulo-{{tag}} file={{state|get:field}} mode={{state.mode}} store={{state.store}}
+    ></modulo-{{tag}}>{% endif %}</div><div></div>{% endfor %}</div>
+</Template><def Script>function prepareCallback(rObj) { if (!('store' in state)) {
+    try { window._globalFS = window._globalFS || parent._globalFS } catch { }
+    state.store = 'build'; if (props.value || props.demo) {
+        const name = (props.demo || 'snippet') + (++num) + '.html';
+        Object.assign(state, { store: 'cache', view: name, edit: name });
+        cache.fdata[name] = rObj['demo_' + props.demo].render(rObj);
+    } } } let num=0; </def>
+</Component><Component mode=vanish namespace=modulo name=Page><Template>
+    {% with global.definitions|get:'file.data' as f %}{% if f.body %}
+    {{ f.body|safe }}{% else %}<modulo-editor></modulo-editor>
+{% endif %}{% endwith %}</Template><Style>:root{line-height:1.5;}
+h2[h]{margin:60px 0 0 0;font-family:sans-serif;font-weight:500;}
+h2[h='#']{font-size:56px} h2[h='##']{font-size:36px;}h2[h='###']
+{font-size:30px}</Style></Component>`}
 };
 
-Modulo.CONFIG.syntax.html.push([ new RegExp(`(\\b${ Object.keys(
+Modulo.CONFIG.syntax.js = Array.from(Modulo.CONFIG.syntax.html)
+Modulo.CONFIG.syntax.js.push([ new RegExp(`(\\b${ Object.keys(
     Modulo.CONFIG.syntax.jsReserved).join('\\b|\\b') }\\b)`, 'g'),
     `<strong style=color:firebrick>$1</strong>` ]);
 
@@ -341,13 +745,8 @@ Modulo.prototype.register = function register (type, cls, defaults = undefined) 
         this.config[cls.name.toLowerCase()] = conf; // e.g. config.foobar
     }
 }
-window.modulo = new window.Modulo(); // Create the global default Modulo instance
 
 const registryCallbacks = {
-    commands(modulo, cls) {
-        window.m = window.m || {}; // Avoid overwriting existing truthy m
-        window.m[cls.name] = () => cls(modulo); // Attach shortcut to global "m"
-    },
     processors(modulo, cls) {
         modulo.registry.processors[cls.name.toLowerCase()] = cls; // Alias lower
     },
@@ -358,14 +757,13 @@ const registryCallbacks = {
 };
 
 Modulo.prototype.instance = function instance(def, extra, inst = null) {
-        const isLower = key => key[0].toLowerCase() === key[0];
         const coreDefSet = { Component: 1, Artifact: 1 }; // TODO: Refactor
-        const registry = (def.Type in coreDefSet) ? 'coreDefs' : 'cparts';
-        inst = inst || new this.registry[registry][def.Type](this, def, extra.element || null);
+        const registry = (def.Type in coreDefSet) ? this.core : this.part;
+        inst = inst || new registry[def.Type](this, def, extra.element || null);
         const id = ++window.Modulo.instanceID; // Unique number
         //const conf = Object.assign({}, this.config[name.toLowerCase()], def);
         const conf = Object.assign({}, def); // Just shallow copy "def"
-        const attrs = this.registry.utils.keyFilter(conf, isLower);
+        const attrs = this.util.keyFilter(conf);
         Object.assign(inst, { id, attrs, conf }, extra, { modulo: this });
         if (inst.constructedCallback) {
             inst.constructedCallback();
@@ -391,7 +789,7 @@ Modulo.prototype.preprocessAndDefine = function preprocessAndDefine(cb, prefix =
     }
 
 Modulo.prototype.loadString = function loadString(text, parentName = null) {
-        return this.loadFromDOM(this.registry.utils.newNode(text), parentName);
+        return this.loadFromDOM(this.util.newNode(text), parentName);
     }
 
 Modulo.prototype.loadFromDOM = function loadFromDOM(elem, parentName = null, quietErrors = false) {
@@ -426,7 +824,7 @@ Modulo.prototype.repeatProcessors = function repeatProcessors(defs, field, cb) {
     }
 
 Modulo.prototype.applyNextProcessor = function applyNextProcessor(def, processorNameArray) {
-        const cls = this.registry.cparts[def.Type] || this.registry.coreDefs[def.Type] || {};
+        const cls = this.part[def.Type] || this.core[def.Type] || {};
         const { processors } = this.registry;
         for (const name of processorNameArray) {
             const [ attrName, aliasedName ] = name.split('|');
@@ -462,24 +860,23 @@ modulo.register('core', class DOMLoader {
         return tagsLower;
     }
 
-    loadFromDOM(elem, parentName = null, quietErrors = false) {
+    loadFromDOM(elem, Parent = null, quietErrors = false) {
         const { defaultDef } = this.modulo.config.modulo;
         const toCamel = s => s.replace(/-([a-z])/g, g => g[1].toUpperCase());
-        const tagsLower = this.getAllowedChildTags(parentName);
+        const tagsLower = this.getAllowedChildTags(Parent);
         const array = [];
         for (const node of elem.children || []) {
-            const partTypeLC = this.getDefType(node, tagsLower, quietErrors);
-            if (node._moduloLoadedBy || partTypeLC === null) {
+            const Type = this.getDefType(node, tagsLower, quietErrors);
+            if (node._moduloLoadedBy || Type === null) {
                 continue; // Already loaded, or an ignorable or silenced error
-            }
+            } // Valid definition, now create the "def" object
             node._moduloLoadedBy = this.modulo.id; // Mark as having loaded this
-            // Valid definition, now create the "def" object
-            const def = Object.assign({ Parent: parentName }, defaultDef);
-            def.Content = node.tagName === 'SCRIPT' ? node.textContent : node.innerHTML;
-            array.push(Object.assign(def, this.modulo.config[partTypeLC]));
+            const Content = node.tagName === 'SCRIPT' ? node.textContent : node.innerHTML;
+            const def = Object.assign({ Type, Parent, Content }, defaultDef);
+            array.push(Object.assign(def, this.modulo.config[Type]));
             for (let name of node.getAttributeNames()) { // Loop through attrs
                 const value = node.getAttribute(name);
-                if (partTypeLC === name && !value) { // e.g. <def Script>
+                if (Type === name && !value) { // e.g. <def Script>
                     continue; // This is the "Type" attribute itself, skip
                 }
                 def[toCamel(name)] = value; // "-kebab-case" to "CamelCase"
@@ -518,27 +915,28 @@ modulo.register('core', class DOMLoader {
 });
 
 modulo.register('core', class ValueResolver {
-    constructor(contextObj = null) {
+    constructor(contextObj = null, sep = null) {
         this.ctxObj = contextObj;
+        this.sep = sep || '.';
         this.isJSON = /^(true$|false$|null$|[^a-zA-Z])/; // "If not variable"
     }
 
     get(key, ctxObj = null) {
-        const { get } = window.modulo.registry.utils; // For drilling down "."
+        const { get } = window.modulo.util; // For drilling down "."
         const obj = ctxObj || this.ctxObj; // Use given one or in general
-        return this.isJSON.test(key) ? JSON.parse(key) : get(obj, key);
+        return this.isJSON.test(key) ? JSON.parse(key) : get(obj, key, this.sep);
     }
 
     set(obj, keyPath, val, autoBind = false) {
-        const index = keyPath.lastIndexOf('.') + 1; // Index at 1 (0 if missing)
+        const index = keyPath.lastIndexOf(this.sep) + 1; // Index at 1 (0 if missing)
         const key = keyPath.slice(index).replace(/:$/, ''); // Between "." & ":"
         const prefix = keyPath.slice(0, index - 1); // Get before first "."
         const target = index ? this.get(prefix, obj) : obj; // Drill down prefix
 
         if (keyPath.endsWith(':')) { // If it's a dataProp style attribute
-            const parentKey = val.substr(0, val.lastIndexOf('.'));
+            const parentKey = val.substr(0, val.lastIndexOf(this.sep));
             val = this.get(val); // Resolve "val" from context, or JSON literal
-            if (autoBind && !this.isJSON.test(val) && parentKey.includes('.')) {
+            if (autoBind && !this.isJSON.test(val) && parentKey.includes(this.sep)) {
                 val = val.bind(this.get(parentKey)); // Parent is sub-obj, bind
             }
         }
@@ -549,18 +947,25 @@ modulo.register('core', class ValueResolver {
 modulo.register('core', class FetchQueue {
     constructor(modulo, queue = {}, data = {}) {
         Object.assign(this, { modulo, queue, data });
+        if (location.protocol === 'file:') {
+            window.addEventListener('message', (ev) => {
+                const data = JSON.parse(ev.data)._data;
+                modulo.fetchQueue.receiveData(data.text, data.src);
+            }, false);
+        }
     }
 
     fetch(src) {  // Returns "thennable" that somewhat resembles window.fetch
+        src = src === '?' ? this.modulo.config.pathName : src; // resolve '?'
+        src = src.endsWith('/') ? `${ src }index.html` : src; // auto index.html
         return { then: callback => this.request(src, callback, console.error) };
     }
 
     request(src, resolve, reject) { // Do fetch & do enqueue
-        src = src === '?' ? this.modulo.config.pathName : src;
-        if (window.parent && parent._globalFS && src in parent._globalFS._cache) {
-            resolve(window.parent._globalFS._cache[src], src); // iframe route
-        } else if (src in this.data) { // Cached data found
+        if (src in this.data) { // Cached data found
             resolve(this.data[src], src); // (sync route)
+        } else if (window.parent && parent._globalFS && src in parent._globalFS._cache) {
+            resolve(window.parent._globalFS._cache[src], src); // iframe route
         } else if (!(src in this.queue)) { // No cache, no queue
             this.queue[src] = [ resolve ]; // First time, create the queue Array
             if (location.protocol !== 'file:' ||
@@ -570,16 +975,9 @@ modulo.register('core', class FetchQueue {
                     .then(text => this.receiveData(text, src))
                     .catch(reject);
             } else {
-                if (!this._inFlight) {
-                    window.addEventListener('message', (ev) => {
-                        iframe.remove();
-                        modulo.fetchQueue.receiveData(ev.data, this._inFlight);
-                    }, false);
-                }
                 const iframe = window.document.createElement('IFRAME');
-                this._inFlight = src;
                 window.document.body.append(Object.assign(iframe, {
-                     src: src + '?argv=_load', style: 'display:none' }));
+                     src: src + '?argv=_load&argv=' + src, style: 'display:none' }));
             }
         } else { // Otherwise: Already requested, only enqueue function
             this.queue[src].push(resolve);
@@ -611,7 +1009,7 @@ modulo.register('core', class FetchQueue {
 });
 
 modulo.register('processor', function src (modulo, def, value) {
-    const { getParentDefPath, trimFileLoader } = modulo.registry.utils;
+    const { getParentDefPath, trimFileLoader } = modulo.util;
     try { def.Source = (new window.URL(value, getParentDefPath(modulo, def))).href;
     } catch { }
     modulo.fetchQueue.fetch(def.Source || value).then(text => {
@@ -632,6 +1030,31 @@ modulo.register('processor', function defTarget (modulo, def, value) {
         if (key.endsWith(':') || key.includes('.')) {
             delete def[key]; // Remove & replace unresolved value
             resolver.set(/^_?[a-z]/.test(key) ? target : def, key, defValue);
+        }
+    }
+});
+
+modulo.register('processor', function register (modulo, def, value) {
+    def.commands = (value || ' ').split(/,/.test(value) ? ',' : '\n');
+    for (const cmd of def.commands) { // Register dev commands
+        modulo.command[cmd.trim() || 'build'] = function build (modulo) {
+            for (const [ key, obj ] of Object.entries(modulo.definitions)) {
+                if (obj.commands && !obj.commands.includes(cmd)) {
+                    delete obj.BuildCommandBuilders; // stop cmd
+                    delete obj.BuildCommandFinalizers;
+                }
+            }
+            modulo._drainQueue(); // Wait for synchronous component code
+            const { BUILD, PROC } = modulo.stores; // Merge BUILD and _cache
+            const _cache = Object.assign(modulo.fetchQueue.data, BUILD.data.fdata);
+            BUILD.data.fdata = _cache; // copy back reference
+            window._globalFS = { _cache, BUILD };
+            if (def.Multi) {
+                for (const row of def[def.Multi]) { // Loop through files to run
+                    PROC.setItem(row[0] + '?argv=build', '');
+                }
+            }
+            modulo.preprocessAndDefine(modulo.cmdCallback, 'BuildCommand');
         }
     }
 });
@@ -685,20 +1108,20 @@ modulo.register('processor', function contentTXT (modulo, def, value) {
 });
 
 modulo.register('processor', function contentMD (modulo, def, value) {
-    const obj = { body: def.Content || '' }; // Setup defaults
-    const chunks = obj.body.split(/(type=.?md.?>---\n|^\s*---\n|\n---\n)/gi);
-    const { syntax } = modulo.registry.templateFilters;
-    if (chunks.length > 2) { // Meta was specified, loop through and parse
-        let key = null
-        for (const line of chunks[2].split(/[\n\r]/g)) {
+    const headerRE = /^([^\n]*---\n.+?\n---\n)/s;
+    const obj = { body: def.Content.replace(headerRE, '') };
+    if (obj.body !== def.Content) { // Meta was specified
+        let key = null; // Used for continuing / multiline keys
+        const lines = def.Content.match(headerRE)[0].split(/[\n\r]/g);
+        for (const line of lines.slice(1, lines.length - 2)) { // omit ---
             if (key && (new RegExp('^[ \\t]')).test(line)) { // Multiline?
                 obj[key] += '\n' + line; // Add back \n, verbatim (no trim)
             } else if (line.trim() && (key = line.split(':')[0])) { // Key?
                 obj[key.trim()] = line.substr(key.length + 1).trim();
             }
         }
-        obj.body = chunks.slice(4, chunks.length).join('\n---\n');
     }
+    const { syntax } = modulo.registry.templateFilters; // optional HTML conv
     obj.body = def.Syntax ? syntax(obj.body, def.Syntax) : obj.body;
     def.Code = 'return ' + JSON.stringify(obj); // Serialize again as JSON
 });
@@ -713,33 +1136,40 @@ modulo.register('processor', function dataType (modulo, def, value) {
 
 modulo.register('processor', function filterContent (modulo, def, value) {
     if (def.Content && value) { // Check if active (needs truthy value)
-        // value = value.trim().replace(/\s*\n\s*\|/gi, '|'); // Would allow multi-line
         const miniTemplate = `{{ def.Content|${ value }|safe }}`;
-        const tmplt = new modulo.registry.cparts.Template(miniTemplate);
+        const tmplt = new modulo.part.Template(miniTemplate);
         def.Content = tmplt.render({ def, config: modulo.config });
     }
 });
 
 modulo.register('processor', function code (modulo, def, value) {
-    const { newNode, bundleHead } = modulo.registry.utils;
+    const { newNode, bundleHead } = modulo.util;
     const name = def.DefinitionName; // Defines global module with name
-    modulo.assert(!(name in modulo.registry.modules), 'Duplicate code module name');
+    modulo.assert(!(name in modulo.registry.modules), 'Duplicate module name');
     const prefix = 'modulo.registry.modules.' + name + ' = function ' + name;
     const content = prefix + ' (modulo) { ' + value + '}';
-    if (document && document.head && name[0] !== '_') { // Browser / bundling context
+    if (document && document.head && name[0] !== '_' && !def.Preprocess) {
         bundleHead(modulo, newNode(content, 'SCRIPT'), modulo.bundles.modscript);
-    } else {
-        Function('window', 'modulo', content)(window, modulo); // Non-browser / hidden
+    } else { // Else: Not a browser / bundling context, e.g. non-browser or tmp
+        Function('window', 'modulo', content)(window, modulo);
     }
 });
 
 modulo.register('processor', function codeTemplate (modulo, def, value) {
-    const tmplt = new modulo.registry.cparts.Template(value); // Anon template
+    const tmplt = new modulo.part.Template(value); // Anon template
     modulo.registry.processors.code(modulo, def, tmplt.render({ modulo, def }));
 });
 
 modulo.register('processor', function requireData (modulo, def, value) {
     def.data = modulo.registry.modules[def[value]].call(window, modulo);
+});
+
+modulo.register('processor', function tagForBuild (modulo, def, value) {
+    for (const tag of value.split(/,/.test(value) ? ',' : '\n')) {
+        const tagObj = modulo.config.modulo.build.defTags;
+        tagObj[tag] = tagObj[tag] || [ ];
+        tagObj[tag].push(def.DefinitionName); // add to tagged list
+    }
 });
 
 // Empty Core Definitions (Behavior is entirely in CONFIG)
@@ -751,9 +1181,9 @@ modulo.register('coreDef', class File {
         if (window.parent) { // If child, actually send data back to parent
             const pre = document[document.body.children.length ? 'body' : 'head']
                     .innerHTML.replace(/^([^\n]* file[^\n>]+>-?-?-?\n).*$/is, '$1')
-                    .replace(/=""/g, '').replace(/="([\w_\?\:\/-]+)"/g, '=$1');
-            modulo.registry.commands._load = () =>
-                window.parent.postMessage(pre + def.Content, value);
+                    .replace(/=""/g, '').replace(/="([\w_\?\.\:\/-]+)"/g, '=$1');
+            modulo.command._load = () => parent.postMessage(JSON.stringify({
+                _data: { src: modulo.argv[1], text: pre + def.Content }}), value);
         }
     }
 });
@@ -784,11 +1214,18 @@ modulo.register('coreDef', class Artifact {
     static LoadElems (modulo, def, value) { // Actually enqueues content
         def.data = def.data || []; // initialize for template
         def.ids = def.ids || []; // initialize for template
+        if ('SaveReqs' in def) {
+            value.push(modulo.util.newNode('', 'SCRIPT', { src: '?' }));
+        }
         for (const elem of value) {
-            const url = elem.getAttribute('src') || elem.getAttribute('href') || null;
+            let url = elem.getAttribute('src') || elem.getAttribute('href') || null;
             if (url) { // Retrieve from URL
                 modulo.fetchQueue.fetch(url).then(text => {
                     def.data[elem.id] = text; // Attach back to element
+                    if ('SaveReqs' in def) {
+                        url = url.replace(/^\?$/, modulo.config.pathName).split('/').pop();
+                        modulo.stores[def.SaveReqs || 'BUILD'].setItem(url, text);
+                    }
                 });
             } else { // Retrieve text content
                 def.data[elem.id] = elem.textContent;
@@ -800,26 +1237,16 @@ modulo.register('coreDef', class Artifact {
     static SaveTo (modulo, def, value, doc = null) { // Build processor
         // TODO: This is broken since it unescapes everyhing
         const ctx = Object.assign({ def, doc: doc || window.document }, modulo);
-        const render = s => new modulo.registry.cparts.Template(s).render(ctx);
+        const render = s => new modulo.part.Template(s).render(ctx);
         const text = (def.prefix || '') + render(def.Content); // Execute template
-        ctx.hash = modulo.registry.utils.hash(text); // Compute hash for path
-        def.path = def.path || render(def.pathTemplate); // Render path template
-        modulo.stores[value].setItem(def.path, text); // Save to given FS
+        if (text) { // Never save an empty string (e.g. ' ' or '\n' is ok)
+            ctx.hash = modulo.util.hash(text); // Compute hash for path
+            def.path = def.path || render(def.pathTemplate); // Render path template
+            modulo.stores[value].setItem(def.path, text); // Save to given FS
+        }
     }
 });
 modulo.register('coreDef', class ContentList { // Generic static-data type
-    static Register (modulo, def, value) { // Register dev commands
-        for (const cmd of value.split(/\s+/g)) {
-            modulo.registry.commands[cmd + '_' + def.DefinitionName] = (modulo) => {
-                const { BUILD, PROC } = modulo.stores;
-                window._globalFS = { BUILD, _cache: modulo.fetchQueue.data };
-                for (const row of def.data) { // Loop through files to run
-                    PROC.setItem(row[0] + '?argv=' + cmd, row[1] || '');
-                }
-                modulo.cmdCallback(); // Dashboard ready, iframes will run
-            };
-        }
-    }
     static Load (modulo, def, value) { // If specified, will recursively load list
         const extra = { Parent: def.DefinitionName, DataType: value || '?' };
         const conf = Object.assign(extra, modulo.config.staticdata);
@@ -831,34 +1258,7 @@ modulo.register('coreDef', class ContentList { // Generic static-data type
     }
 });
 
-modulo.register('cpart', class Include { // Used as both "CPart" and "coreDef"
-    static Server(modulo, def, value) { // Loads given Include def
-        const { keyFilter } = modulo.registry.utils;
-        const lower = key => key[0].toLowerCase() === key[0]; // skip "-prefixed"
-        const ctx = { def, modulo, server: value };
-        const render = code => new modulo.registry.cparts.Template(code).render(ctx);
-        def.Content = def.Content || '';
-        for (const [ pkg, v ] of Object.entries(keyFilter(def, lower))) {
-            ctx.path = v.contains('@') ? v : pkg + (v ? ('@' + v) : '');
-            ctx.isCSS = (ctx.path.includes('/') && ctx.path.endsWith('.css'));
-            ctx.url = render(def.ServerTemplate); // Render URL using ServerTemplate
-            def.Content += render(def.TagTemplate); // Append tag to head Content
-        }
-    }
-    static LoadMode(modulo, def, value) { // Loads given Include def
-        const { bundleHead, newNode } = modulo.registry.utils;
-        for (const elem of newNode(def.Content).children) { // Loop through combined
-            // TODO: Correctly use "value" for async / lazy type loading
-            bundleHead(modulo, elem);
-        }
-    }
-    intitializedCallback(renderObj) {
-        const { Include } = this.modulo.registry.cparts; // Can I use self. reliably?
-        //Include.LoadMode(this.modulo, this.conf, 'lazy', { }); // Always load if ID not exist
-        Include.LoadMode(this.modulo, this.conf, 'lazy'); // Always load if ID not exist
-    }
-});
-modulo.register('coreDef', modulo.registry.cparts.Include); // Allow globally
+modulo.register('coreDef', modulo.part.Include); // Allow globally
 
 modulo.register('coreDef', class Component {
     static CustomElement (modulo, def, value) {
@@ -926,8 +1326,6 @@ modulo.register('coreDef', class Component {
     }
 
     buildCallback() {
-        // TODO - Faster: patches.filter(p => p[1].endsWith('Mount'))
-        // .map(p => p[2].rawName).map(attr => `[${ attr }]`).join(',');
         this.element.setAttribute('modulo-mount-html', this.element.originalHTML)
         for (const elem of this.element.querySelectorAll('*')) {
             for (const name of elem.getAttributeNames()) {
@@ -939,12 +1337,12 @@ modulo.register('coreDef', class Component {
     }
 
     initializedCallback() {
-        const { newNode } = this.modulo.registry.utils;
+        const { newNode } = this.modulo.util;
         const html = this.element.getAttribute('modulo-mount-html'); // Hydrate?
         this._mountRival = html === null ? this.element : newNode(html);
         this.element.originalHTML = html === null ? this.element.innerHTML : html;
         this.resolver = new this.modulo.registry.core.ValueResolver(this.modulo);
-        this.reconciler = new this.modulo.registry.core.Reconciler(this.modulo);
+        this.reconciler = new this.modulo.engine.DOMReconciler(this.modulo);
         for (const part of Object.values(this.element.cparts)) { // Setup parts
             this.reconciler.registerDirectives(part, part.conf);
         }
@@ -981,7 +1379,7 @@ modulo.register('coreDef', class Component {
             this.modulo.assert(this.attrs.mode === 'custom-root', 'Bad mode')
         }
         if (innerHTML !== null && !innerDOM) { // Use component.innerHTML as DOM
-            innerDOM = this.modulo.registry.utils.newNode(innerHTML);
+            innerDOM = this.modulo.util.newNode(innerHTML);
         }
         if (innerDOM && this.attrs.mode !== 'shadow') {
             for (const elem of this.element.originalChildren) {
@@ -1053,385 +1451,7 @@ modulo.register('coreDef', class Component {
     }
 });
 
-modulo.register('cpart', class Props {
-    static factoryCallback({ elementClass }, def, modulo) {
-        const isLower = key => key[0].toLowerCase() === key[0]; // skip "-prefixed"
-        const keys = Array.from(Object.keys(def)).filter(isLower);
-        elementClass.observedAttributes.push(...keys);
-    }
-    initializedCallback() {
-        this.data = { }; // Pre-populate data with the mounted attributes
-        Object.keys(this.attrs).forEach(attrName => this.updateProp(attrName));
-        return this.data;
-    }
-    updateProp(attrName) { // Loads from element
-        this.data[attrName] = this.element.hasAttribute(attrName) ?
-            this.element.getAttribute(attrName) : this.attrs[attrName];
-    }
-    attrCallback({ attrName }) {
-        if (attrName in this.attrs) {
-            this.updateProp(attrName);
-            this.element.rerender();
-        }
-    }
-});
-
-modulo.register('cpart', class Style { // md:### Style
-    // md:```html=component<Template><em>Stylish</em>, <big>look</big>!</Template>
-    // md:<Style>em { color: tomato } big { background: salmon }</Style>```
-    static AutoIsolate(modulo, def, value) { // md: Style "auto-isolates" CSS.
-        const { AutoIsolate } = modulo.registry.cparts.Style; // (for recursion)
-        const { namespace, mode, Name } = modulo.definitions[def.Parent] || {};
-        if (value === true) { // md: By default, it uses the component's mode,
-            AutoIsolate(modulo, def, mode); // to decide "regular" vs "vanish".
-        } else if (value === 'regular' && !def.isolateClass) { // md: Regular
-            def.prefix = def.prefix || `${namespace}-${Name}`; // md: prefixes
-        } else if (value === 'vanish') { // md: each selector, while for
-            def.isolateClass = def.isolateClass || def.Parent; // md: "vanish"
-        } // md: it modifies the DOM and adds a class it creates to every
-    } // md: direct child. For "shadow", it adds the sheet to the shadow DOM.
-    static processSelector (modulo, def, selector) {
-        const hostPrefix = def.prefix || ('.' + def.isolateClass);
-        if (def.isolateClass || def.prefix) {
-            // Upgrade the ":host" or :root pseudo-elements to be the full name
-            const hostRegExp = new RegExp(/:(host|root)(\([^)]*\))?/, 'g');
-            selector = selector.replace(hostRegExp, hostClause => {
-                hostClause = hostClause.replace(/:(host|root)/gi, '');
-                return hostPrefix + (hostClause ? `:is(${ hostClause })` : '');
-            });
-        }
-        let selectorOnly = selector.replace(/\s*[\{,]\s*,?$/, '').trim();
-        if (def.isolateClass && selectorOnly !== hostPrefix) {
-            // Remove extraneous characters (and strip ',' for isolateSelector)
-            let suffix = /{\s*$/.test(selector) ? ' {' : ', ';
-            selectorOnly = selectorOnly.replace(/:(:?[a-z-]+)\s*$/i, (all, pseudo) => {
-                if (pseudo.startsWith(':') || def.corePseudo.includes(pseudo)) {
-                    suffix = ':' + pseudo + suffix; // Attach to suffix, on outside
-                    return ''; // Strip pseudo from the selectorOnly variable
-                }
-                return all;
-            });
-            def.isolateSelector.push(selectorOnly); // Add to array for later
-            selector = `.${ def.isolateClass }:is(${ selectorOnly })` + suffix;
-        }
-        if (def.prefix && !selector.startsWith(def.prefix)) {
-            // A prefix was specified, so prepend it if it doesn't have it
-            selector = `${ def.prefix } ${ selector }`;
-        }
-        return selector;
-    }
-    static ProcessCSS (modulo, def, value) {
-        if (def.isolateClass || def.prefix) {
-            if (!def.keepComments) {
-                value = value.replace(/\/\*.+?\*\//g, ''); // strip comments
-            }
-            def.isolateSelector = []; // Used to accumulate elements to select
-            value = value.replace(/([^\r\n,{}]+)(,(?=[^}]*{)|\s*{)/gi, selector => {
-                selector = selector.trim();
-                if (selector.startsWith('@') || selector.startsWith('from')
-                                              || selector.startsWith('to')) {
-                    return selector; // Skip (e.g. is @media or @keyframes)
-                }
-                return this.processSelector(modulo, def, selector);
-            });
-        }
-        if (def.urlReplace || (def.urlReplace === null && def.Source)) {
-            const key = def.urlReplace === 'absolute' ? 'href' : 'pathname';
-            value = value.replace(/url\(['"]?([^)]+?)['"]?\)/gi, (all, url) => {
-                if (url.startsWith('.')) { // If relative, make absolute
-                    return `url("${ (new window.URL(url, def.Source))[key] }")`;
-                }
-                return all; // Not a relative URL, return all text untampered
-            });
-        }
-        const { mode } = modulo.definitions[def.Parent] || {};
-        if (mode === 'shadow') { // Stash in the definition configuration
-            def.shadowContent = (def.shadowContent || '') + value;
-        } else { // Otherwise, just load as a regular modulo asset
-            const { newNode, bundleHead } = modulo.registry.utils;
-            bundleHead(modulo, newNode(value, 'STYLE'), modulo.bundles.modstyle);
-        }
-    }
-    domCallback(renderObj) {
-        const { mode } = modulo.definitions[this.conf.Parent] || {};
-        const { innerDOM, Parent } = renderObj.component;
-        const { isolateClass, isolateSelector, shadowContent } = this.conf;
-        if (isolateClass && isolateSelector && innerDOM) { // Attach classes
-            const selector = isolateSelector.filter(s => s).join(',\n');
-            for (const elem of innerDOM.querySelectorAll(selector)){
-                elem.classList.add(isolateClass); // Ensure all dom children get the class
-            }
-        }
-        if (shadowContent && innerDOM) { // Append to element to reconcile
-            const elem = this.modulo.registry.utils.newNode(shadowContent, 'STYLE');
-            innerDOM.append(elem);
-        }
-    }
-});
-
-modulo.register('cpart', class Template {
-    static TemplatePrebuild (modulo, def, value) {
-        modulo.assert(def.Content, `Empty Template: ${def.DefinitionName}`);
-        const template = modulo.instance(def, { });
-        const compiledCode = template.compileFunc(def.Content);
-        const code = `return function (CTX, G) { ${ compiledCode } };`;
-        modulo.registry.processors.code(modulo, def, code);
-        delete def.Content;
-    }
-    constructor(text, options = null) {
-        if (typeof text === 'string') { // Using "new" (direct JS interface)
-            window.modulo.instance(options || { }, null, this); // Setup object
-            this.conf.DefinitionName = '_template_template' + this.id; // Unique
-            const code = `return function (CTX, G) { ${ this.compileFunc(text) } };`;
-            this.modulo.registry.processors.code(this.modulo, this.conf, code);
-        }
-    }
-
-    constructedCallback() {
-        // Combines conf from all sources: config, defaults, and "registered"
-        this.stack = []; // Parsing tag stack, used to detect unclosed tags
-        const { filters, tags, modes } = this.conf;
-        const { templateFilters, templateTags, templateModes } = this.modulo.registry;
-        Object.assign(this, this.modulo.config.template, this.conf);
-        // Set "filters" and "tags" with combined / squashed configuration
-        this.filters = Object.assign({ }, templateFilters, filters);
-        this.tags = Object.assign({ }, templateTags, tags);
-        this.modes = Object.assign({ }, templateModes, modes);
-    }
-
-    initializedCallback() {
-        return { render: this.render.bind(this) }; // Export "render" method
-    }
-
-    renderCallback(renderObj) {
-        if (this.conf.Name === 'template' || this.conf.active) { // If primary
-            renderObj.component.innerHTML = this.render(renderObj); // Do render
-        }
-    }
-
-    parseExpr(text) {
-        // Output JS code that evaluates an equivalent template code expression
-        const filters = text.split('|');
-        let results = this.parseVal(filters.shift()); // Get left-most val
-        for (const [ fName, arg ] of filters.map(s => s.trim().split(':'))) {
-            const argList = arg ? ',' + this.parseVal(arg) : '';
-            results = `G.filters["${fName}"](${results}${argList})`;
-        }
-        return results;
-    }
-
-    parseCondExpr(string) {
-        // Return an Array that splits around ops in an "if"-style statement
-        const regExpText = ` (${this.opTokens.split(',').join('|')}) `;
-        return string.split(RegExp(regExpText));
-    }
-
-    toCamel(string) { // Takes kebab-case and converts toCamelCase
-        return string.replace(/-([a-z])/g, g => g[1].toUpperCase());
-    }
-
-    parseVal(string) {
-        // Parses str literals, de-escaping as needed, numbers, and context vars
-        const s = string.trim();
-        if (s.match(/^('.*'|".*")$/)) { // String literal
-            return JSON.stringify(s.substr(1, s.length - 2));
-        }
-        return s.match(/^\d+$/) ? s : `CTX.${ this.toCamel(s) }`
-    }
-
-    tokenizeText(text) {
-        // Join all modeTokens with | (OR in regex)
-        const { escapeRegExp } = this.modulo.registry.utils;
-        const re = '(' + this.modeTokens.map(escapeRegExp).join('|(').replace(/ +/g, ')(.+?)');
-        return text.split(RegExp(re)).filter(token => token !== undefined);
-    }
-
-    compileFunc(text) {
-        const { normalize } = this.modulo.registry.utils;
-        let code = 'var OUT=[];\n'; // Variable used to accumulate code
-        let mode = 'text'; // Start in text mode
-        const tokens = this.tokenizeText(text);
-        for (const token of tokens) {
-            if (mode) { // If in a "mode" (text or token), then call mode func
-                const result = this.modes[mode](token, this, this.stack);
-                if (result) { // Mode generated text output, add to code
-                    const comment = !this.disableComments ? '' :
-                        ' // ' + JSON.stringify(normalize(token).trim());
-                    code += `  ${ result }${ comment }\n`;
-                }
-            }
-            // FSM for mode: ('text' -> null) (null -> token) (* -> 'text')
-            mode = (mode === 'text') ? null : (mode ? 'text' : token);
-        }
-        code += '\nreturn OUT.join("");'
-        const unclosed = this.stack.map(({ close }) => close).join(', ');
-        this.modulo.assert(!unclosed, `Unclosed tags: ${ unclosed }`);
-        return code;
-    }
-
-    render(renderObj) {
-        if (!this.renderFunc) { // Run module and get function
-            this.renderFunc = this.modulo.registry.modules[this.conf.DefinitionName].call(window, this.modulo);
-        }
-        return this.renderFunc(Object.assign({ renderObj, global: this.modulo }, renderObj), this);
-    }
-});
-
-modulo.register('cpart', class StaticData { // md:### StaticData
-    prepareCallback() { // md:```html=component<StaticData>{ "a": { "b": [ 1, 2, 3 ] } }</StaticData>
-        // md:<Template>Easy as {{ staticdata.a.b|join:', ' }}</Template>```
-        return this.conf.data; // md: StaticData returns unchanging data.
-    } // md: If built, the data is "frozen" in it's given state, in the bundle.
-});
-
-modulo.register('cpart', class Script { // md:### Script
-    // md:```html=component<def Script>function hi(){ alert(element) }</def>
-    // md:<Template><button on.click=script.hi>See alert</button></Template>```
-    static factoryCallback(renderObj, def, modulo) {// md: Scripts run JS code.
-        //modulo.assert(results || !def.Parent, 'Invalid script return');
-        const func = () => modulo.registry.modules[def.DefinitionName].call(window, modulo);
-        if (def.lifecycle === 'initialized') { // TODO rm / change this feature
-            return { initializedCallback: func }; // Attach as callback
-        } // md: By default, they run in static context (e.g. on page start).
-        return func();
-    }
-
-    static AutoExport (modulo, def, value) { // md: Scripts auto-export:
-        const { getAutoExportNames } = modulo.registry.utils;
-        if (def.lifecycle && def.lifecycle !== 'initialized') {
-            value = `function ${ def.lifecycle }Callback (renderObj) {${ value }}`;
-        } // md: Named functions (ie function foo, not =>) and classes are exposed
-        const { ChildrenNames } = modulo.definitions[def.Parent] || { };
-        const sibs = (ChildrenNames || []).map(n => modulo.definitions[n].Name);
-        sibs.push('component', 'element', 'cparts');
-        def.exportNames = def.exportNames || getAutoExportNames(value);
-        def.locals = def.locals || sibs.filter(name => value.includes(name));
-        def.Directives = def.exportNames.filter(s => s.match(/(Unmount|Mount)$/));
-        def.tempContent = value; // TODO: Refactor AutoExport + CodeTemplate
-    } // md: Internally, they have access to all component parts, and element.
-
-    initializedCallback(renderObj) { // md: When the component mounts, scripts will
-        // md: also register all callbacks, wrapping user functions as needed.
-        const script = renderObj[this.conf.Name];
-        this.eventCallback = (rObj) => { // Create eventCallback to set inner
-            const vars = { element: this.element, cparts: this.element.cparts };
-            const setLocal = script.setLocalVariables || (() => {});
-            setLocal(Object.assign(vars, rObj)); // Set inner vars (or no-op)
-        };
-        if (script.initializedCallback) { // If defined, trigger inner init
-            this.eventCallback(renderObj); // Prep before (used by lc=false)
-            Object.assign(script, script.initializedCallback(renderObj));
-            this.eventCallback(renderObj); // Prep again (used by lc=initialize)
-        } // md: Specifically, it registers any functions ending with Mount,
-        const isCB = /(Mount|Unmount|Callback)$/; // md: Unmount, or Callback.
-        for (const cbName of Object.keys(script)) {
-            if (cbName === 'initializedCallback' || !cbName.match(isCB)) {
-                continue; // Skip over initialized (already handled) and non-CBs
-            } // md: These become either directives, or lifecycle callbacks.
-            this[cbName] = arg => { // Arg: Either renderObj or directive obj
-                const renderObj = this.element.getCurrentRenderObj();
-                const script = renderObj[this.conf.Name]; // Get new render obj
-                this.eventCallback(renderObj); // Prep before lifecycle method
-                Object.assign(script, script[cbName](arg) || {});
-            };
-        }
-    }
-});
-
-
-modulo.register('cpart', class State { // md:### State
-    // md:```html=component<State msg="Lorem"></State>
-    // md:<Template>{{ state.msg }}: <input state.bind name=msg></Template>```
-
-    static factoryCallback(renderObj, def, modulo) {
-        if (def.Store) { // md: If a -store= is specified, it's global.
-            const store = modulo.registry.utils.makeStore(modulo, def);
-            if (!(def.Store in modulo.stores)) { // md: The first one
-                modulo.stores[def.Store] = store; // md: encountered
-            } else { // md: with that name will create the "Store".
-                Object.assign(modulo.stores[def.Store].data, store.data);
-            } // md: Subsequent usage will share and react to that one "Store".
-        } // md: Otherwise, it will default to be newly made per-component,
-    } // md: and create a private store for each component instance,
-    initializedCallback(renderObj) { // md: when that component "initializes".
-        const store = this.conf.Store ? this.modulo.stores[this.conf.Store]
-                : this.modulo.registry.utils.makeStore(this.modulo, this.conf);
-        store.subscribers.push(Object.assign(this, store));
-        this.types = { range: Number, number: Number, checkbox: (val, el) => el.checked };
-        return store.data; // TODO: Possibly, push ALL sibling CParts with stateChangedCallback
-    }
-
-    bindMount({ el, nameSuffix, value, listen }) {
-        const name = value || el.getAttribute('name');
-        const val = this.modulo.registry.utils.get(this.data, name);
-        this.modulo.assert(val !== undefined, `state.bind "${name}" undefined`);
-        const isText = el.tagName === 'TEXTAREA' || el.type === 'text';
-        const evName = nameSuffix ? nameSuffix : (isText ? 'keyup' : 'change');
-        if (!(name in this.boundElements)) {
-            this.boundElements[name] = [];
-        }
-        // Bind the "listen" event to propagate to all, and trigger initial vals
-        listen = listen ? listen : () => this.propagate(name, el.value, el);
-        this.boundElements[name].push([ el, evName, listen ]);
-        el.addEventListener(evName, listen);
-        this.propagate(name, val, this); // trigger initial assignment(s)
-    }
-
-    bindUnmount({ el, nameSuffix, value }) {
-        const name = value || el.getAttribute('name');
-        const remainingBound = [];
-        for (const row of this.boundElements[name]) {
-            if (row[0] === el) {
-                row[0].removeEventListener(row[1], row[2]);
-            } else {
-                remainingBound.push(row);
-            }
-        }
-        this.boundElements[name] = remainingBound;
-    }
-
-    stateChangedCallback(name, value, el) {
-        this.modulo.registry.utils.set(this.data, name, value);
-        if (!this.conf.Only || this.conf.Only.includes(name)) {
-            this.element.rerender();
-        }
-    }
-
-    eventCallback() {
-        this._oldData = Object.assign({}, this.data);
-    }
-
-    propagate(name, val, originalEl = null) {
-        const elems = (this.boundElements[name] || []).map(row => row[0]);
-        const typeConv = this.types[ originalEl ? originalEl.type : null ];
-        val = typeConv ? typeConv(val, originalEl) : val; // Apply conversion
-        for (const el of this.subscribers.concat(elems)) {
-            if (originalEl && el === originalEl) {
-                continue; // don't propagate to originalEl (avoid infinite loop)
-            }
-            if (el.stateChangedCallback) { // A callback was found, use instead
-                el.stateChangedCallback(name, val, originalEl);
-            } else if (el.type === 'checkbox') { // Check input use ".checkbox"
-                el.checked = !!val;
-            } else { // Normal inputs use ".value"
-                el.value = val;
-            }
-        }
-    }
-
-    eventCleanupCallback() {
-        for (const name of Object.keys(this.data)) {
-            this.modulo.assert(!this.conf.AllowNew && name in this._oldData,
-                `State variable "${ name }" is undeclared (no "-allow-new")`);
-            if (this.data[name] !== this._oldData[name]) {
-                this.propagate(name, this.data[name], this);
-            }
-        }
-        this._oldData = null;
-    }
-});
-
-modulo.register('util', class DOMCursor {
+modulo.engine.DOMCursor = class DOMCursor {
     constructor(parentNode, parentRival, slots) {
         this.slots = slots || {}; // Slottables keyed by name (default is '')
         this.instanceStack = []; // Used for implementing DFS non-recursively
@@ -1511,9 +1531,9 @@ modulo.register('util', class DOMCursor {
         this._setNextRival(rival); // Traverse initially
         return [ child, rival ];
     }
-});
+}
 
-modulo.register('core', class Reconciler {
+modulo.engine.DOMReconciler = class DOMReconciler {
     constructor(modulo) {
         this.modulo = modulo;
         this.directives = {};
@@ -1536,7 +1556,7 @@ modulo.register('core', class Reconciler {
     }
 
     reconcileChildren(childParent, rivalParent, slots) {
-        const cursor = new this.modulo.registry.utils.DOMCursor(childParent, rivalParent, slots);
+        const cursor = new this.modulo.engine.DOMCursor(childParent, rivalParent, slots);
         while (cursor.hasNext()) { // "rival" is node we wish "child" to match
             const [ child, rival ] = cursor.next();
 
@@ -1566,7 +1586,7 @@ modulo.register('core', class Reconciler {
                     if (rival.hasAttribute('modulo-ignore')) { // Don't descend
                         // console.log('Skipping ignored node');
                     } else if (child.isModulo) { // is a Modulo component
-                        //this.patch(child, 'rerender', rival); // TODO! Rely on props
+                        this.patch(child, 'rerender', rival); // TODO rm!
                     } else { //} else if (!this.shouldNotDescend) {
                         cursor.saveToStack();
                         cursor.initialize(child, rival);
@@ -1649,14 +1669,14 @@ modulo.register('core', class Reconciler {
             }
         }
     }
-});
+}
 
-modulo.register('util', function initComponentClass (modulo, def, cls) {
+modulo.util.initComponentClass = function initComponentClass (modulo, def, cls) {
     // Run factoryCallback static lifecycle method to create initRenderObj
     const initRenderObj = { elementClass: cls }; // TODO: "static classCallback"
     for (const defName of def.ChildrenNames) {
         const cpartDef = modulo.definitions[defName];
-        const cpartCls = modulo.registry.cparts[cpartDef.Type];
+        const cpartCls = modulo.part[cpartDef.Type];
         if (cpartCls.factoryCallback) {
             const result = cpartCls.factoryCallback(initRenderObj, cpartDef, modulo);
             initRenderObj[cpartDef.RenderObj || cpartDef.Name] = result;
@@ -1695,52 +1715,51 @@ modulo.register('util', function initComponentClass (modulo, def, cls) {
         return this.cparts.component.getCurrentRenderObj();
     };
     modulo.register('element', cls); // All elements get registered centrally
-});
+}
 
-modulo.register('util', function makeStore (modulo, def) {
-    const isLower = key => key[0].toLowerCase() === key[0]; // skip "-prefixed"
-    let data = modulo.registry.utils.keyFilter(def, isLower); // Get defaults
-    data = JSON.parse(JSON.stringify(data)); // Deep copy to ensure primitives
+modulo.util.makeStore  = function makeStore (modulo, def) {
+    const data = JSON.parse(JSON.stringify(modulo.util.keyFilter(def)));
     return { data, boundElements: {}, subscribers: [] };
-});
+}
 
-modulo.register('util', function configureStatic (modulo) { // Setup default content
+modulo.util.configureStatic  = function configureStatic (modulo) { // Setup default content
     const { staticDir, rootDir, scriptSelector } = modulo.config.modulo;
     const dir = staticDir || 'static/'; // has src=static/mdu.js
     const mdu = window.document.head.querySelector(scriptSelector);
     const root = rootDir || ((mdu || {}).src || '').split(dir)[0]; // e.g. ../
     if (mdu && root !== mdu.src && !modulo.definitions.modulo) { // No Modulo
         modulo.loadString(`<Modulo -src="${ root + dir }">`); // Load default
-    }
+    } // TODO: Add "redirect" and/or 404 Router feature here?
     if (!modulo.definitions.modulo && modulo.definitions.file) {
         modulo.fetchQueue.enqueue(() => { // If file specified, try appending HTML
             document.body.innerHTML += modulo.config.modulo.defaultContent;
         }, true);
     }
-});
+}
 
-modulo.register('util', function keyFilter (obj, func) {
+modulo.util.keyFilter = function keyFilter (obj, func = null) {
+    func = func || (key => /^[a-z]/.test(key)); // Start with lower alpha
     const keys = func.call ? Object.keys(obj).filter(func) : func;
     return Object.fromEntries(keys.map(key => [ key, obj[key] ]));
-});
+}
 
-modulo.register('util', function hash (str) { //  Returns base32 hash
+modulo.util.hash  = function hash (str) { //  Returns base32 hash
     let h = 0; // Simple, insecure, "hashCode()" implementation
     for (let i = 0; i < str.length; i++) {
-        h = Math.imul(31, h) + str.charCodeAt(i) | 0; //h = ((h << 5 - h) + str.charCodeAt(i)) | 0;
-    }
+        h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+    } //h = ((h << 5 - h) + str.charCodeAt(i)) | 0;
     const hash8 = ('---------' + (h || 0).toString(32)).slice(-8);
     return hash8.replace(/-/g, 'x'); // Pad with 'x'
-});
+}
 
-modulo.register('util', function newNode(innerHTML, tag) {
-    const obj = { innerHTML }; // Extra properties to assign
+modulo.util.newNode = function newNode(innerHTML, tag, extra) {
+    const obj = Object.assign({ innerHTML }, extra);
     return Object.assign(window.document.createElement(tag || 'div'), obj);
-});
+}
 
-modulo.register('util', function bundleHead(modulo, elem, bundle = null, doc = null) {
+modulo.util.bundleHead = function bundleHead(modulo, elem, bundle = null, doc = null) {
     doc = doc || window.document;
-    const { newNode, hash } = modulo.registry.utils;
+    const { newNode, hash } = modulo.util;
     const url = elem.getAttribute('src') || elem.getAttribute('href');
     const id = 'include_' + hash(elem.name || url || elem.textContent);
     bundle = bundle || modulo.bundles[elem.tagName.toLowerCase()];
@@ -1759,47 +1778,41 @@ modulo.register('util', function bundleHead(modulo, elem, bundle = null, doc = n
     newElem.setAttribute('id', id);
     newElem.textContent = elem.textContent; // Evaluate code
     doc.head.append(newElem); // add to document
-});
+}
 
-modulo.register('util', function normalize(html) {
-    // Normalize space to ' ' & trim around tags
-    return html.replace(/\s+/g, ' ').replace(/(^|>)\s*(<|$)/g, '$1$2').trim();
-});
+modulo.util.normalize = s => // Normalize space to ' ' & trim around tags
+        s.replace(/\s+/g, ' ').replace(/(^|>)\s*(<|$)/g, '$1$2').trim();
 
-modulo.register('util', function escapeRegExp(s) {
-    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\" + "\x24" + "&");
-});
+modulo.util.escapeRegExp = s => // Escape string for regexp
+    s.replace(/[.*+?^${}()|[\]\\]/g, "\\" + "\x24" + "&");
 
-modulo.register('util', function get(obj, key) {
-    return (key in obj) ? obj[key] : (key + '').split('.').reduce((o, name) => o[name], obj);
-});
+modulo.util.get = (obj, key, sep='.') => (key in obj) ? // Get key path from object
+     obj[key] : (key + '').split(sep).reduce((o, name) => o[name], obj);
 
-modulo.register('util', function set(obj, keyPath, val) {
-    return new window.modulo.registry.core.ValueResolver(window.modulo).set(obj, keyPath, val);
-});
+modulo.util.set = (obj, keyPath, val, sep = null) => // Set key path in object
+    new modulo.registry.core.ValueResolver(modulo, sep).set(obj, keyPath, val);
 
-modulo.register('util', function getParentDefPath(modulo, def) {
-    const { getParentDefPath } = modulo.registry.utils; // Use to recurse
+modulo.util.trimFileLoader = s =>
+    s.replace(/^([^\n]+script[^\n]+[ \n]file[^\n>]+>(\*\/|)\n)/is, '$2');
+
+modulo.util.getParentDefPath = function getParentDefPath(modulo, def) {
+    const { getParentDefPath } = modulo.util; // Use to recurse
     const pDef = def.Parent ? modulo.definitions[def.Parent] : null;
     const url = String(window.location).split('?')[0]; // Remove ? info
     return pDef ? pDef.Source || getParentDefPath(modulo, pDef) : url;
-});
+}
 
-modulo.register('util', function trimFileLoader(text) {
-    return text.replace(/^([^\n]*[ \n]file[^\n>]+>\*?\/?-?-?-?\n)/is, '');
-});
-
-modulo.register('util', function getAutoExportNames(text) {
+modulo.util.getAutoExportNames = function getAutoExportNames(text) {
     const { jsReserved, jsAutoExport } = modulo.config.syntax;
     const matches = text.match(new RegExp(jsAutoExport, 'g')) || []
     const symbols = matches.map(sym => sym.match(jsAutoExport)[2])
     return symbols.filter(sym => sym && !(sym in jsReserved));
-});
+}
 
-modulo.register('util', function makeStoreFS(modulo) { // TODO: Refactor with state
-    const store = modulo.registry.utils.makeStore(modulo, { fdata: { }, log: [ ] });
+modulo.util.makeStoreFS = function makeStoreFS(modulo) { // TODO: Refactor with state
+    const store = modulo.util.makeStore(modulo, { fdata: { }, log: [ ] });
     return Object.assign(store, { types: {} }, {
-        propagate: modulo.registry.cparts.State.prototype.propagate.bind(store),
+        propagate: modulo.part.State.prototype.propagate.bind(store),
         key: i => Object.keys(store.data.fdata)[i],
         getItem: key => key in store.data.fdata ? store.data.fdata[key] : null,
         removeItem: (key, val) => store.setItem(key, null), // Note: Deleting leaves log, etc
@@ -1809,17 +1822,18 @@ modulo.register('util', function makeStoreFS(modulo) { // TODO: Refactor with st
             store.propagate('fdata', store.data.fdata);
         },
     });
-});
+}
 
-modulo.register('util', function setupDevLib(modulo, subFS = null) {
+modulo.util.setupDevLib = function setupDevLib(modulo, subFS = null) {
     // Setup argv / path, sets up the "FS" stores (or parent's stores + queue)
-    // Then, loads / compiles "Dev Lib" (3 artifacts, 1 dashboard component)
-    modulo.argv = new window.URLSearchParams(window.location.search).getAll('argv');
+    // Then, loads / compiles "Dev Lib" (3 artifacts, 1 Editor component)
+    modulo.argv = Array.from(new window.URLSearchParams(window.location.search).getAll('argv'));
     modulo.config.pathName = window.location.pathname.split('/').pop();
+    modulo.config.date = (new Date()) + ''; // String version of date
     try { subFS = subFS || window.parent._globalFS; }
     catch (e) { } // Ignore XSS or undefined errors
     for (const fs of modulo.config.modulo.fs || [ 'BUILD', 'CACHE', 'PROC' ]) {
-        modulo.stores[fs] = modulo.registry.utils.makeStoreFS(modulo);
+        modulo.stores[fs] = modulo.util.makeStoreFS(modulo);
     }
     if (subFS && subFS._cache) {
         Object.assign(modulo.stores, subFS); // Override to "parent" FS
@@ -1829,22 +1843,42 @@ modulo.register('util', function setupDevLib(modulo, subFS = null) {
         const code = modulo.config._dev[type].replace(/\n\s+/gm, '\n');
         modulo.loadString(code, '_' + type); // "_" prefix means dev-only
     }
-});
-
-modulo.register('util', function getCommand(modulo) {
+}
+modulo.util.getCommand = function getCommand(modulo) {
       const cmdName = modulo.argv.length > 0 ? modulo.argv[0] : '_default';
-      return () => modulo.registry.commands[cmdName](modulo);
-});
+      return () => modulo.command[cmdName](modulo);
+}
 
-// Modulo Templating Language: Default Filters, Modes, and Tags
-modulo.registry.templateFilters = (function getDefaultFilters () {
-    const { get } = modulo.registry.utils;
-    const safe = s => Object.assign(new String(s), { safe: true });
-    const escapeForRE = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const syntax = (s, arg = 'text') => { // General RegExp language converter
+modulo.registry.templateModes = { // md: ## Templating Language
+    '{%': (text, tmplt, stack) => { // md: Modulo's template language looks for
+        const tTag = text.trim().split(' ')[0]; // md: syntax like `{% ... %}`.
+        const tagFunc = tmplt.tags[tTag]; // md: These are "template tags".
+        if (stack.length && tTag === stack[stack.length - 1].close) {
+            return stack.pop().end;
+        } else if (!tagFunc) {
+            throw new Error(`Unknown tag "${tTag}": ${text}`);
+        }
+        const result = tagFunc(text.slice(tTag.length + 1), tmplt);
+        if (result.end) {  // md: Most expect an end tag: e.g. `{% if %}` has
+            stack.push({ close: `end${ tTag }`, ...result });//md:`{% endif %}`.
+        } // md: However, `include` and `debugger` do not, and require
+        return result.start || result; // md: a tag only in one spot.
+    }, // md: Using syntax like `{{ state.a|upper }}`, it can apply filters.
+    '{#': (text, tmplt) => false, // md: Finally, short comments: `{# like this #}`
+    '{{': (text, tmplt) => `OUT.push(G.${ tmplt.unsafe }(${ tmplt.parseExpr(text) }));`,
+    text: (text, tmplt) => text && `OUT.push(${JSON.stringify(text)});`,
+}; // md: ### Template Filters
+//md:```html=component<Template><h1>Default filter demonstration</h1>
+//md:{% for fil,f in global.registry.template-filters %}<h2>|{{fil}}</h2>
+modulo.registry.templateFilters = (function ModuloFilter () {
+    //md:"abc-xyz" &rarr; {% ignoremissing %}"{{ "abc-xyz"|apply:fil }}"
+    const { get } = modulo.util;//md:{% endignoremissing %}</p>{% endfor %}
+    const safe = s =>Object.assign(new String(s),{safe: true});//md:</Template>
+    const escapere = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');//md:```
+    const syntax = (s, arg = 'text') => {
         for (const [ find, sub, sArg ] of modulo.config.syntax[arg]) {
             s = find ? s.replace(find, sub) : filters[sub](s, sArg);
-        }
+        } // ``` General RegExp language converter
         return s;
     };
     const tagswap = (s, arg) => {
@@ -1859,6 +1893,7 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
     const filters = {
         add: (s, arg) => s + arg,
         allow: (s, arg) => arg.split(',').includes(s) ? s : '',
+        apply: (s, arg) => filters[arg](s),
         camelcase: s => s.replace(/-([a-z])/g, g => g[1].toUpperCase()),
         capfirst: s => s.charAt(0).toUpperCase() + s.slice(1),
         combine: (s, arg) => s.concat ? s.concat(arg) : Object.assign({}, s, arg),
@@ -1873,6 +1908,7 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
         json: (s, arg) => JSON.stringify(s, null, arg || undefined),
         last: s => s[s.length - 1],
         length: s => s.length !== undefined ? s.length : Object.keys(s).length,
+        lines: s => s.split('\n'),
         lower: s => s.toLowerCase(),
         multiply: (s, arg) => (s * 1) * (arg * 1),
         number: (s) => Number(s),
@@ -1880,7 +1916,7 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
         skipfirst: (s, arg) => Array.from(s).slice(arg || 1),
         subtract: (s, arg) => s - arg,
         trim: (s, arg) => s.replace(new RegExp(`^\\s*${ arg = arg ?
-            escapeForRE(arg).replace(',', '|') : '|' }\\s*$`, 'g'), ''),
+            escapere(arg).replace(',', '|') : '|' }\\s*$`, 'g'), ''),
         truncate: (s, arg) => ((s && s.length > arg*1) ? (s.substr(0, arg-1) + '…') : s),
         type: s => s === null ? 'null' : (Array.isArray(s) ? 'array' : typeof s),
         renderas: (rCtx, template) => safe(template.render(rCtx)),
@@ -1892,52 +1928,32 @@ modulo.registry.templateFilters = (function getDefaultFilters () {
     const { values, keys, entries } = Object;
     const extra = { tagswap, get, safe, values, keys, entries, syntax };
     return Object.assign(filters, extra);
-})();
-
-modulo.registry.templateModes = {
-    '{%': (text, tmplt, stack) => {
-        const tTag = text.trim().split(' ')[0];
-        const tagFunc = tmplt.tags[tTag];
-        if (stack.length && tTag === stack[stack.length - 1].close) {
-            return stack.pop().end; // Closing tag, return it's end code
-        } else if (!tagFunc) { // Undefined template tag
-            throw new Error(`Unknown template tag "${tTag}": ${text}`);
-        } // Normal opening tag
-        const result = tagFunc(text.slice(tTag.length + 1), tmplt);
-        if (result.end) { // Not self-closing, push to stack
-            stack.push({ close: `end${ tTag }`, ...result });
-        }
-        return result.start || result;
-    },
-    '{#': (text, tmplt) => false, // falsy values are ignored
-    '{{': (text, tmplt) => `OUT.push(G.${ tmplt.unsafe }(${ tmplt.parseExpr(text) }));`,
-    text: (text, tmplt) => text && `OUT.push(${JSON.stringify(text)});`,
-};
-
-modulo.registry.templateTags = {
-    'comment': () => ({ start: "/*", end: "*/"}),
-    'debugger': () => 'debugger;',
-    'else': () => '} else {',
+})(); // md: ### Template Tags
+// md: Modulo comes with 10 template tags. A couple useful ones to debug are here:
+modulo.registry.templateTags = { // md: ```html=component<Template>Nothing...
+    'comment': () => ({ start: "/*", end: "*/"}),//md:{% comment %}(ignore this)
+    'debugger': () => 'debugger;', // md: {% debugger %} - pause here!
+    'else': () => '} else {', //md: {% endcomment %}</Template>```
     'elif': (s, tmplt) => '} else ' + tmplt.tags['if'](s, tmplt).start,
     'empty': (text, {stack}) => { // Empty only runs if loop doesn't run
         const varName = 'G.FORLOOP_NOT_EMPTY' + stack.length;
         const oldEndCode = stack.pop().end; // get rid of dangling for
         const start = `${varName}=true; ${oldEndCode} if (!${varName}) {`;
         const end = `}${varName} = false;`;
-        return { start, end, close: 'endfor' };
-    },
-    'for': (text, tmplt) => { // For loops translate into for..in
-        const arrName = 'ARR' + tmplt.stack.length;
+        return { start, end, close: 'endfor' }; // md: #### for
+    }, // md: One of the most useful is "for loops", which repeat their
+    'for': (text, tmplt) => { // md: contents in a loop.
+        const arrName = 'ARR' + tmplt.stack.length; 
         const [ varExp, arrExp ] = text.split(' in ');
         let start = `var ${arrName}=${tmplt.parseExpr(arrExp)};`;
         // TODO: Upgrade to for...of loop (after good testing)
         start += `for (var KEY in ${arrName}) {`;
         const [keyVar, valVar] = varExp.split(',').map(s => s.trim());
-        if (valVar) {
-            start += `CTX.${keyVar}=KEY;`;
-        }
-        start += `CTX.${valVar ? valVar : varExp}=${arrName}[KEY];`;
-        return { start, end: '}'};
+        if (valVar) {//md:```html=component<Template>
+            start += `CTX.${keyVar}=KEY;`;//md:{% for key, value in state %}
+        }//md:<h2>{{ key }}: <em>{{ value }}</em></h2>{% endfor %}
+        start += `CTX.${valVar?valVar:varExp}=${arrName}[KEY];`;
+        return { start, end: '}'};//md:</Template><State a=b c=d e=f></State>```
     },
     'if': (text, tmplt) => {
         // Limit to 3 (L/O/R)
@@ -1949,6 +1965,7 @@ modulo.registry.templateTags = {
         return { start, end: '}' };
     },
     'include': (text) => `OUT.push(CTX.${ text.trim() }.render(CTX));`,
+    'ignoremissing': () => ({ start: 'try{\n', end: '}catch (e){}\n' }),
     'with': (text, tmplt) => {
         const [ varExp, varName ] = text.split(' as ');
         const code = `CTX.${ varName }=${ tmplt.parseExpr(varExp) };\n`;
@@ -1956,40 +1973,23 @@ modulo.registry.templateTags = {
     },
 };
 
-modulo.register('command', function build (modulo) {
-    modulo._drainQueue();
-    modulo.preprocessAndDefine(modulo.cmdCallback, 'BuildCommand');
-});
-
-modulo.register('command', function edit ({ argv, config, fetchQueue, stores }) {
-    window._globalFS = { _cache: modulo.stores.BUILD.data.fdata };
-    const setter = ([ p, d ]) => stores.BUILD.setItem(p.split(/\//g).pop(), d);
-    Object.assign(fetchQueue.data, config._dev['preset_' + argv[1]] || {});
-    modulo.fetchQueue.fetch('?').then(text => {
-        modulo.repeatProcessors(null, 'BuildCommandBuilders', () => {
-            Object.entries(fetchQueue.data).forEach(setter);
-            modulo.cmdCallback(0, stores.BUILD.data.log[0][0]); // Open first
-        });
-    });
-});
-
-modulo.register('command', function _default (modulo) { // Show |%| console menu
+modulo.command._default = function _default (modulo) { // Show |%| console menu
     const font = 'font-size: 28px; padding:0 8px 0 8px; border:2px solid #000;';
-    const names = Object.keys(modulo.registry.commands).filter(s => !s.startsWith('_'));
+    const names = Object.keys(modulo.command).filter(s => !s.startsWith('_'));
     const gets = names.map(s => `get ${ s }(){location.href+="?argv=${ s }"}`);
     const aStr = JSON.stringify([ '%cᵐ°dᵘ⁄o', font, names.join(', ') ]);
     Function(`console.log(...${ aStr },new (class {${ gets.join('\n') }}))`)();
-    modulo.cmdCallback(0, false); // default behavior, skip dashboard
-});
+    modulo.cmdCallback(0, false); // default behavior, do not show Editor
+}
 
 if (typeof window.document !== 'undefined' && !window.moduloBuild) { // Browser
     modulo.loadFromDOM(window.document.head, null, true); // Blocking head load
-    modulo.registry.utils.setupDevLib(modulo); // Loads default devlib
+    modulo.util.setupDevLib(modulo); // Loads default devlib
     window.document.addEventListener('DOMContentLoaded', () => {
         modulo.loadFromDOM(window.document.head, null, true); // Deferred head
         modulo.loadFromDOM(window.document.body, null, true); // Deferred body
-        modulo.registry.utils.configureStatic(modulo); // Run any default loads
-        modulo.preprocessAndDefine(modulo.registry.utils.getCommand(modulo));
+        modulo.util.configureStatic(modulo); // Run any default loads
+        modulo.preprocessAndDefine(modulo.util.getCommand(modulo));
     });
 } else if (typeof module !== 'undefined') { // Node.js
     module.exports = { modulo, window };
