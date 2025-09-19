@@ -1,12 +1,12 @@
 /*<script src=Modulo.html></script><meta charset=utf8><script File -syntax=mdocs type=md>---
-version: v0.1.0pre
+version: v0.1.0
 copyright: 2025 Michael Bethencourt - LGPLv3 - NO WARRANTEE OR IMPLIED UTILITY;
     ANY MODIFICATIONS OR DERIVATIVES OF THE MODULO FRAMEWORK MUST BE LGPLv3+
     LGPL Notice: It is acceptable to link ("bundle") and distribute the Modulo
     Framework with other code as long as the LICENSE and NOTICE remains intact.
 ---
-// *///md: `v0.1.0pre [ᵐ°dᵘ⁄o@codeberg.org](https://codeberg.org/modulo)` */
-if (typeof window === "undefined") {// md: # ᵐ°dᵘ⁄o
+// *///md:`v0.1.0 [ᵐ°dᵘ⁄o @ codeberg](https://modulo.codeberg.page/docs/)` */
+if (typeof window === "undefined") {// md: # **ᵐ°dᵘ⁄o**
     var window = {};
 }// md: ---
 //md:###`%` [Create **Markdown** »](?argv=newmd)
@@ -15,7 +15,7 @@ window.Modulo = function Modulo () {//md:###`%` [Create **Library** »](?argv=ne
     //md: _**Hint:** Click starter template for preview. Click file(s) to save._
     window.Modulo.instanceID = window.Modulo.instanceID || 0;
     this.id = ++window.Modulo.instanceID; // md: **About:** Modulo (or ᵐ°dᵘ⁄o)
-    Object.assign(this, { //md: is a [single-file](?argv=edit) frontend
+    Object.assign(this, { //md: is a [single file](?argv=edit) frontend
         _connectedQueue: [], //md: framework, squeezing in numerous tools for
         _drainQueue: () => { //md: modern HTML, CSS, and JavaScript develpment.
             while (this._connectedQueue.length > 0) { // md: Featuring: Web
@@ -60,9 +60,9 @@ window.Modulo = function Modulo () {//md:###`%` [Create **Library** »](?argv=ne
     this.processor = this.util.insObject(window.Modulo.DefProcessors(this));
     this.part = this.util.insObject(window.Modulo.ComponentParts(this));
     this.core = this.util.insObject(window.Modulo.CoreDefinitions(this));
-    this.templateModes = window.Modulo.TemplateModes(this)
-    this.templateTags = window.Modulo.TemplateTags(this)
-    this.templateFilters = window.Modulo.TemplateFilters(this)
+    this.templateMode = window.Modulo.TemplateModes(this)
+    this.templateTag = window.Modulo.TemplateTags(this)
+    this.templateFilter = window.Modulo.TemplateFilters(this)
     Object.assign(this.registry, { utils: this.util, cparts: this.part,
         coreDefs: this.core, processors:this.processor }) // TODO Legacy alias
 };
@@ -113,8 +113,8 @@ class Props { // md: ### Props
 }
 
 class Style { // md:### Style
-    // md:```html=component<Template><em>Stylish</em>, <big>look</big>!</Template>
-    // md:<Style>em { color: tomato } big { background: salmon }</Style>```
+    // md:```html=component<Template><em class="r">Stylish</em>, look!</Template>
+    // md:<Style>.r { color: red } :host { border: 9px red solid }</Style>```
     static AutoIsolate(modulo, def, value) { // md: _Style_ "auto-isolates" CSS.
         const { AutoIsolate } = modulo.part.Style; // (for recursion)
         const { namespace, mode, Name } = modulo.definitions[def.Parent] || {};
@@ -352,12 +352,12 @@ class Template { // md: ### Template
     constructedCallback() { // Flatten filters, tags, and modes
         this.stack = []; // cause err on unclosed
         const { filters, tags, modes } = this.conf;
-        const { templateFilters, templateTags, templateModes } = this.modulo;
+        const { templateFilter, templateTag, templateMode } = this.modulo;
         Object.assign(this, this.modulo.config.template, this.conf);
         // md: Templates have numerous built-in _filters_, _tags_, and _modes_.
-        this.filters = Object.assign({ }, templateFilters, filters);
-        this.tags = Object.assign({ }, templateTags, tags);
-        this.modes = Object.assign({ }, templateModes, modes);
+        this.filters = Object.assign({ }, templateFilter, filters);
+        this.tags = Object.assign({ }, templateTag, tags);
+        this.modes = Object.assign({ }, templateMode, modes);
     }
     initializedCallback() {
         return { render: this.render.bind(this) }; // Export "render" method
@@ -608,14 +608,14 @@ window.customElements.define(def.TagName, {{ def.className }});
 return {{ def.className }};
         `.replace(/^\s+/gm, ''),
     },
-    configuration: { // Base configuration of <Configuration> itself
-        DefTarget: 'config', // Why it targets .config by default
+    configuration: {
+        DefTarget: 'config', // data goes to .config
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'Src|SrcSync', 'Content|Code',
                        'DefinitionName|MainRequire' ],
     },
     contentlist: {
         DataType: 'CSV', // Use "CSV" (no autodetect)
-        DefLoaders: [ 'DefTarget', 'DefinedAs', 'DataType', 'Src', 'commands|Register' ],
+        DefLoaders: [ 'DefTarget', 'DefinedAs', 'DataType', 'Src', 'build|Register' ],
         DefBuilders: Modulo.CONTENT_TYPES,
         Preprocess: true, // true is "toss code after"
         Multi: 'data', // Loop through data and apply proc after
@@ -652,7 +652,7 @@ return {{ def.className }};
         defaultContent: '<!DOCTYPE html><meta charset=utf8><modulo-Page>',
         scriptSelector: "script[src$='mdu.js'],script[src$='Modulo.js']," +
                         "script[src='?'],script[src$='Modulo.html']",
-        version: '0.1.0pre',
+        version: '0.1.0',
         ChildPrefix: '', // Prevents all children from getting modulo_ prefixed
         Contains: 'core',
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'Src', 'Content' ],
@@ -888,7 +888,7 @@ component: `
 h2[h]{margin:60px 0 0 0;font-family:sans-serif;font-weight:500;}
 h2[h='#']{font-size:64px} h2[h='##']{font-size:46px;}h2[h='###']{font-size:30px}
 h2[h='#'],h2[h='##']{text-align:center}code{background:#88888855}
-hr{border:1vh solid #88888855;margin:11vh 20% 11vh 20%}</Style></Component>`}
+hr{border:0.5vw solid #88888855;margin:5vw 30% 5vw 30%}</Style></Component>`}
 };
 
 Modulo.CONFIG.syntax.js = Array.from(Modulo.CONFIG.syntax.html)
@@ -987,6 +987,7 @@ function initComponentClass (modulo, def, cls) {
     for (const defName of def.ChildrenNames) {
         const cpartDef = modulo.definitions[defName];
         const cpartCls = modulo.part[cpartDef.Type];
+        modulo.assert(cpartCls, 'Unknown Part:' + cpartDef.Type);
         if (cpartCls.factoryCallback) {
             const result = cpartCls.factoryCallback(initRenderObj, cpartDef, modulo);
             initRenderObj[cpartDef.RenderObj || cpartDef.Name] = result;
@@ -1043,6 +1044,11 @@ function configureStatic (modulo) { // Setup default content
         modulo.fetchQueue.enqueue(() => { // If file specified, try appending HTML
             document.body.innerHTML += modulo.config.modulo.defaultContent;
         }, true);
+    }
+    modulo.command.checkmissing = () => console.info("[CHECK] [CMD]", new Date())
+    if (modulo.argv[0] === 'checkmissing') {
+        setTimeout(() => console.info("[CHECK] [TIMEOUT] (Errors)", new Date(),
+            Object.keys(modulo.fetchQueue.queue)), modulo.argv[1] || 8000);
     }
 }
 function keyFilter (obj, func = null) {
@@ -1253,8 +1259,8 @@ function contentMD (modulo, def, value) { //md:**MD** - Parses "Markdown Meta"
             }
         }
     }
-    const { syntax } = modulo.templateFilters; // optional HTML conv
-    obj.body = def.Syntax ? syntax(obj.body, def.Syntax) : obj.body;
+    const filter = modulo.templateFilter[def.Filter || 'syntax'];
+    obj.body = def.Syntax ? filter(obj.body, def.Syntax) : obj.body;
     def.Code = 'return ' + JSON.stringify(obj); // Serialize again as JSON
 }
 function dataType (modulo, def, value) {
@@ -1919,7 +1925,8 @@ class Library { } //md:**Library** - Like `<Modulo>`, but prefices definitions
 
 class Modulo { } //md:**Modulo** - The outermost definition to "launch" Modulo
 
-return { Artifact, Component, Configuration, File, Library, Modulo, Include };
+return { Artifact, Component, Configuration, ContentList, File, Include,
+         Library, Modulo };
 } /* End of CoreDefinitions */
 
 Modulo._default = function _default (modulo) { // The "[modu/o] menu" console
