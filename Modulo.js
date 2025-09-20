@@ -71,7 +71,7 @@ Modulo.ComponentParts = modulo => {// md: ## Components
 
 class Include { // md: ### Include
     // md:```html=component<Include>
-    // md:<style>body { background: salmon }</style>
+    // md:<style>body { background: pink }</style>
     static LoadMode(modulo, def, value) { // md:</Include>
         const { bundleHead, newNode } = modulo.util; // md:```
         for (const elem of newNode(def.Content).children) { // md: Include loops
@@ -504,7 +504,7 @@ Modulo.TemplateTags = modulo => ({//md:```html=component<Template>{% if state.a 
 
 Modulo.TemplateFilters = modulo => {//md:Using `|` we can apply _filters_:
 //md:```html=component<Template><h2>Modulo Filters:</h2><dl>
-//md:{% for fil in global.template-filters|keys|sorted %}<dt>{{fil}}</dt>
+//md:{% for fil in global.template-filter|keys|sorted %}<dt>{{fil}}</dt>
 //md:<dd>"ab1-cd2"|{{fil}}&rarr; "{% ignoremissing %}{{"ab1-cd2"|apply:fil}}
 //md:{% endignoremissing %}"</dd>{% endfor %}</dl></Template>```
 const { get } = modulo.util;
@@ -570,7 +570,7 @@ return Object.assign(Filters,
 // md: ## Configuration
 // md: All definitions "extend" a base configuration. See below:
 Modulo.CONTENT_TYPES = [ 'ContentMD', 'ContentCSV', 'ContentTXT', 'ContentJSON',
-                         'ContentJS', 'Code', 'RequireData', 'Load' ];
+     'ContentJS', 'Code', 'RequireData', 'Load', 'ChildrenNames|CollectFiles' ];
 Modulo.CONFIG = { //md:```html=component<Template>{% for t, c in global.config %}
     artifact: { //md:<h4>{{ t }}</h4><pre>{{ c|json:2 }}</pre>{% endfor %}
         tagAliases: { 'js': 'script', 'ht': 'html', 'he': 'head', 'bo': 'body' },
@@ -617,6 +617,9 @@ return {{ def.className }};
         DataType: 'CSV', // Use "CSV" (no autodetect)
         DefLoaders: [ 'DefTarget', 'DefinedAs', 'DataType', 'Src', 'build|Register' ],
         DefBuilders: Modulo.CONTENT_TYPES,
+        Contains: 'part',
+        LoadTemplate: `{% for src in def.data %}<StaticData -src="{{ src }}"
+-data-type="{{ value }}"></StaticData>{% endfor %}`,
         Preprocess: true, // true is "toss code after"
         Multi: 'data', // Loop through data and apply proc after
         RequireData: 'DefinitionName',
@@ -968,6 +971,7 @@ function repeatProcessors(defs, field, cb) {
 function applyNextProcessor (def, processorNameArray) {
     const cls = modulo.part[def.Type] || modulo.core[def.Type] || {};
     for (const name of processorNameArray) {
+        modulo.assert(name, `${ def.DefinitionName } - Invalid: ${ processorNameArray }"`);
         const [ attrName, aliasedName ] = name.split('|');
         if (attrName in def) {
             const funcName = aliasedName || attrName;
@@ -1246,8 +1250,9 @@ function contentTXT (modulo, def, value) { //md: **TXT** - no conversion needed
     def.Code = 'return ' + JSON.stringify(def.Content);
 }
 function contentMD (modulo, def, value) { //md:**MD** - Parses "Markdown Meta"
-    const headerRE = /^([^\n]*---\n.+?\n---\n)/s; //md:(e.g. between `---` at top)
+    const headerRE = /^([^\n]*---+\n.+?\n---\n)/s; //md:(e.g. between `---` at top)
     const obj = { body: def.Content.replace(headerRE, '') };
+    //console.log('META', obj.body.length, def.Content.length)
     if (obj.body !== def.Content) { // Meta was specified
         let key = null; // Used for continuing / multiline keys
         const lines = def.Content.match(headerRE)[0].split(/[\n\r]/g);
@@ -1399,7 +1404,7 @@ class FetchQueue {
         if (location.protocol in this.protos) {
             try { this.gFS = window._globalFS || parent._globalFS } catch { }
             window.addEventListener('message', (ev) => {
-                const data = JSON.parse(ev.data)._data;
+                const data = JSON.parse(ev.data)._FL;
                 modulo.fetchQueue.receiveData(data.text, data.src);
             }, false);
         }
@@ -1894,27 +1899,34 @@ class Component { //md: **Component** - Register a custom component
 
 class Configuration { } //md:**Configuration** - Set global `modulo.config`
 
-class ContentList { // md: **ContentList** - CMS system for pages and content
-    static Load (modulo, def, value) { // If specified, will recursively load list
-        const extra = { Parent: def.DefinitionName, DataType: value || '?' };
-        const conf = Object.assign(extra, modulo.config.staticdata);
-        conf.DefList = [ 'DefinedAs', 'DataType', 'Src' ].concat(conf.DefBuilders);
-        const defs = def.data.files.map(Src => Object.assign({ Src }, conf));
-        modulo.util.repeatProcessors(defs, 'List'); // Loads each "staticdata"
-        def.data.meta = Object.fromEntries(def.data.files.map(k => [ k, { } ]));
-        return true; // Always pause (since the above will fetch Src's)
+class ContentList { // md: **ContentList** - CMS system for pages and content.
+    static Load (modulo, def, value) { // md: Specify `-load` to load all URLs.
+        const tmplt = new modulo.part.Template(def.LoadTemplate); // StaticData
+        modulo.util.loadString(tmplt.render({ def, value }), def.DefinitionName);
+        return true;
+    }
+    static CollectFiles (modulo, def, value) { // Moves defs to .files
+        const { DefLoaders, DefBuilders } = modulo.config.staticdata;
+        def.files = [ ]; // TODO replace with defaultContentTypes
+        for (const name of value) {
+            const cDef = modulo.definitions[name];
+            cDef.ContentTypes = DefLoaders.concat(DefBuilders);
+            def.files.push(cDef);
+            delete modulo.definitions[name];
+        }
+        modulo.util.repeatProcessors(def.files, 'ContentTypes');
     }
 }
 
 class File { //md:**File** - Turns HTML into loadable content (by default, Markdown)
     static FrameLoad (modulo, def, value) { // FrameLoad allows file:// proto
-        const p = !window.parent || parent === window ? { } : parent;
-        if (p) { // If child, actually send data back to parent
+        if (window.parent && parent !== window && modulo.argv[0] === '_load') {
             const pre = document[document.body.children.length ? 'body' : 'head']
                     .innerHTML.replace(/^([^\n]* file[^\n>]+>-?-?-?\n).*$/is, '$1')
                     .replace(/=""/g, '').replace(/="([\w_\?\.\:\/-]+)"/g, '=$1');
-            modulo.command._load = () => parent.postMessage(JSON.stringify({
-                _data: { src: modulo.argv[1], text: pre + def.Content }}), value);
+            const  _FL = { src: modulo.argv[1], text: pre + def.Content };
+            parent.postMessage(JSON.stringify({ _FL })); // "frame load"
+            modulo.util.repeatProcessors = () => {} // stop future loading
         }
     }
 }
