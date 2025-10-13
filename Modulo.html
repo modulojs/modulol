@@ -5,7 +5,7 @@ copyright: 2025 Michael Bethencourt - LGPLv3 - NO WARRANTEE OR IMPLIED UTILITY;
     LGPL Notice: It is acceptable to link ("bundle") and distribute the Modulo
     Framework with other code as long as the LICENSE and NOTICE remains intact.
 ---
-// */ // md: `[ % ] v0.1.0 [MODULO WEBSITE](https://modulo.codeberg.page/)`
+// */ // md: `[ % ] v0.1.0 [ModuloHTML.org](https://modulohtml.org/)`
 var Modulo = function Modulo (OPTS = { }) {
     const Lib = OPTS.globalLibrary || window.Modulo || Modulo; //md:# **ᵐ°dᵘ⁄o**
     Lib.instanceID = Lib.instanceID || 0;
@@ -225,9 +225,10 @@ class Script { // md:### Script
     }
 }
 
-class State { // md:### State
-    // md:```html=component<State msg="Lorem" a:=123></State>
-    // md:<Template>{{ state.msg }}: <input state.bind name=msg></Template>```
+// md:### State
+// md:```html=component<State msg="Lorem" a:=123></State>
+// md:<Template>{{ state.msg }}: <input state.bind name=msg></Template>```
+class State { // _State_ declares _state variables_ to bind to forms.
     static factoryCallback(renderObj, def, modulo) {
         if (def.Store) { // md: If a -store= is specified, it's global.
             const store = modulo.util.makeStore(modulo, def);
@@ -421,7 +422,7 @@ Modulo.TemplateModes = modulo => ({ // md: ## Template Language
     '{#': (text, tmplt) => false, // md: Short comments are `{# like this #}`.
     '{{': (text, tmplt) => `OUT.push(G.${ tmplt.unsafe }(${ tmplt.parseExpr(text) }));`,
     text: (text, tmplt) => text && `OUT.push(${JSON.stringify(text)});`,
-}) // md: Try changing `true` to `false` in this simple example of `{% if %}`:
+}) // md: Simple example of `{% if %}`:
 
 Modulo.TemplateTags = modulo => ({//md:```html=component<Template>{% if state.a %}
     'comment':() => ({ start: "/*", end: "*/"}),//md:<p>Y</p>{% else %}<p>N</p>
@@ -669,7 +670,7 @@ artifact: `
     <ht><he>{{ doc.head.innerHTML|safe }}
     <link rel="stylesheet" href="{{ definitions._artifact_css.path }}"></link>
     {% if "vanish" not in argv|get:0 %}
-    <js async src="{{ definitions._artifact_js.path }}"></js>
+    <js defer src="{{ definitions._artifact_js.path }}"></js>
     {% endif %}</he><bo>{{ doc.body.innerHTML|safe }}</bo></ht>
 </Artifact>
 <Artifact name=edit -collect=? -save-reqs build=edit></Artifact>
@@ -842,6 +843,7 @@ CONFIG.syntax.js.push([ new RegExp(`(\\b${ Object.keys(
 return CONFIG
 };
 
+
 Modulo.ContentTypes = modulo => ({ // md: **ContentTypes**: CSV (limited),
     CSV: s => (s || '').trim().split('\n').map(r => r.trim().split(',')),
     JS: s => Function('return (' + s + ');')(), // md: JS (expression syntax),
@@ -866,7 +868,8 @@ Modulo.ContentTypes = modulo => ({ // md: **ContentTypes**: CSV (limited),
     TXT: s => s, // md: TXT (plain text),
     BIN: (s, arg = 'application/octet-stream') => //md: BIN (binary types).
         `data:${ arg };charset=utf-8,${ window.encodeURIComponent(s) }`,
-}); /* End of ContentTypes */
+});
+
 
 /* Utility Functions that setup Modulo */
 Modulo.Utils = function UtilityFunctions (modulo) {
@@ -1129,6 +1132,7 @@ Object.assign(Utilities, { applyNextProcessor, configureStatic, hash,
 return Utilities;
 }; /* End of UtilityFunctions */
 
+
 Modulo.Processors = function DefProcessors (modulo) { /*#UNLESS#*/
 // md: ### Content Processors
 function src (modulo, def, value) { // md: `-src="path..."` - Loads content
@@ -1241,6 +1245,7 @@ return modulo.util.insObject({ src, srcSync, defTarget, command, content,
     mainRequire, definedAs, dataType, filterContent, code, contentType, defer })
 /*#ENDUNLESS#*/
 } /* End of Modulo.DefProcessors */
+
 
 Modulo.Engines = function Engines (modulo) {
 
@@ -1606,6 +1611,7 @@ class DOMReconciler {
 
 return { FetchQueue, DOMLoader, ValueResolver, DOMReconciler, DOMCursor }
 } /* End of Modulo.Engines */
+
 
 Modulo.FetchQueues = function FetchQueues (modulo) {
     Object.assign(modulo, {
